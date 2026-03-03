@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Segoe UI', 'Yu Gothic UI', 'Meiryo', sans-serif;
+}
+
+@layer components {
+  .shift-tag {
+    @apply inline-block px-1.5 py-0 rounded text-xs font-bold;
+  }
+  .toggle-switch {
+    @apply relative inline-block w-11 h-6 shrink-0;
+  }
+  .toggle-switch input {
+    @apply opacity-0 w-0 h-0;
+  }
+  .toggle-slider {
+    @apply absolute inset-0 bg-gray-300 rounded-full cursor-pointer transition-colors duration-200;
+  }
+  .toggle-slider::before {
+    content: '';
+    @apply absolute w-4 h-4 left-1 top-1 bg-white rounded-full transition-transform duration-200 shadow;
+  }
+  .toggle-switch input:checked + .toggle-slider {
+    @apply bg-amber-500;
+  }
+  .toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(20px);
+  }
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(60px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in {
+  animation: slide-in 0.25s ease-out;
+}

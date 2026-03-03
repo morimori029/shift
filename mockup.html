@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>介護シフト自動作成 - UIモックアップ</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', 'Yu Gothic UI', 'Meiryo', sans-serif; background: #f0f2f5; color: #1a1a2e; display: flex; height: 100vh; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar { width: 220px; background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); color: #fff; display: flex; flex-direction: column; flex-shrink: 0; }
+  .sidebar-header { padding: 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .sidebar-header h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }
+  .sidebar-header p { font-size: 11px; color: #8892b0; margin-top: 4px; }
+  .sidebar-nav { flex: 1; padding: 12px 0; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 11px 20px; cursor: pointer; font-size: 13.5px; color: #a8b2d1; transition: all 0.15s; border-left: 3px solid transparent; }
+  .nav-item:hover { background: rgba(255,255,255,0.05); color: #ccd6f6; }
+  .nav-item.active { background: rgba(100,130,255,0.12); color: #fff; border-left-color: #6c8cff; font-weight: 600; }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .sidebar-footer { padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 11px; color: #5a6280; }
+
+  /* Main */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Header */
+  .header { background: #fff; padding: 16px 28px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .header h2 { font-size: 18px; font-weight: 700; }
+  .month-picker { display: flex; align-items: center; gap: 8px; background: #f7f8fc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 12px; font-size: 14px; font-weight: 600; }
+  .month-picker button { background: none; border: none; cursor: pointer; font-size: 16px; color: #6c8cff; padding: 0 4px; }
+
+  /* Floor Tabs */
+  .floor-tabs { display: flex; gap: 0; background: #fff; padding: 0 28px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
+  .floor-tab { padding: 10px 24px; font-size: 13.5px; font-weight: 600; cursor: pointer; border-bottom: 2.5px solid transparent; color: #64748b; transition: all 0.15s; }
+  .floor-tab:hover { color: #1a1a2e; }
+  .floor-tab.active { color: #6c8cff; border-bottom-color: #6c8cff; }
+
+  /* Content */
+  .content { flex: 1; overflow: auto; padding: 24px 28px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Cards */
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); padding: 20px; margin-bottom: 20px; }
+  .card-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .card-title .badge { background: #6c8cff; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+
+  /* Staff Table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 12px; background: #f7f8fc; color: #64748b; font-weight: 600; font-size: 12px; border-bottom: 1px solid #e2e8f0; }
+  td { padding: 10px 12px; border-bottom: 1px solid #f0f2f5; }
+  tr:hover td { background: #fafbff; }
+  .role-tag { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11.5px; font-weight: 600; }
+  .role-regular { background: #dbeafe; color: #1e40af; }
+  .role-part { background: #fef3c7; color: #92400e; }
+  .role-dispatch { background: #e0e7ff; color: #3730a3; }
+  .night-ok { color: #059669; }
+  .night-ng { color: #dc2626; }
+  .shift-tags { display: flex; gap: 3px; flex-wrap: wrap; }
+  .shift-tag { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+  .shift-tag-early { background: #dbeafe; color: #1d4ed8; }
+  .shift-tag-day { background: #d1fae5; color: #065f46; }
+  .shift-tag-late { background: #ffedd5; color: #c2410c; }
+  .shift-tag-night { background: #e9d5ff; color: #7c3aed; }
+  .shift-tag-off { background: #f1f5f9; color: #94a3b8; text-decoration: line-through; opacity: 0.5; }
+  .leader-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #78350f; white-space: nowrap; }
+  .leader-badge svg { width: 12px; height: 12px; }
+  .leader-na { color: #cbd5e1; font-size: 12px; }
+
+  .toggle-row { display: flex; align-items: center; gap: 12px; }
+  .toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; inset: 0; background: #e2e8f0; border-radius: 12px; cursor: pointer; transition: 0.2s; }
+  .toggle-slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+  .toggle input:checked + .toggle-slider { background: #f59e0b; }
+  .toggle input:checked + .toggle-slider::before { transform: translateX(20px); }
+  .toggle-label-text { font-size: 13px; font-weight: 600; color: #475569; }
+
+  .shift-cell-leader { position: relative; }
+  .shift-cell-leader::after { content: 'L'; position: absolute; top: -5px; right: -4px; background: #f59e0b; color: #78350f; font-size: 8px; font-weight: 800; width: 13px; height: 13px; line-height: 13px; text-align: center; border-radius: 50%; }
+
+  /* Staff edit modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 100; justify-content: center; align-items: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: 14px; padding: 28px; width: 480px; max-width: 90vw; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+  .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 20px; }
+  .modal-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .modal-row label { font-size: 13px; font-weight: 600; min-width: 110px; color: #475569; }
+  .modal-row input[type="text"], .modal-row select { flex: 1; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; }
+  .shift-check-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .shift-check { display: none; }
+  .shift-check-label { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; border: 2px solid #e2e8f0; background: #f8fafc; color: #94a3b8; transition: all 0.15s; user-select: none; }
+  .shift-check:checked + .shift-check-label { border-color: currentColor; background: currentColor; }
+  .shift-check:checked + .shift-check-label.label-early { border-color: #3b82f6; background: #dbeafe; color: #1d4ed8; }
+  .shift-check:checked + .shift-check-label.label-day { border-color: #10b981; background: #d1fae5; color: #065f46; }
+  .shift-check:checked + .shift-check-label.label-late { border-color: #f59e0b; background: #ffedd5; color: #c2410c; }
+  .shift-check:checked + .shift-check-label.label-night { border-color: #8b5cf6; background: #e9d5ff; color: #7c3aed; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid #f0f2f5; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; transition: all 0.15s; }
+  .btn-primary { background: #6c8cff; color: #fff; }
+  .btn-primary:hover { background: #5a78f0; }
+  .btn-success { background: #10b981; color: #fff; }
+  .btn-success:hover { background: #059669; }
+  .btn-outline { background: #fff; color: #64748b; border: 1px solid #e2e8f0; }
+  .btn-outline:hover { background: #f7f8fc; }
+  .btn-danger { background: #fee2e2; color: #dc2626; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  /* Shift Table */
+  .shift-table-wrap { overflow-x: auto; }
+  .shift-table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+  .shift-table th, .shift-table td { padding: 6px 4px; text-align: center; border: 1px solid #e2e8f0; min-width: 38px; white-space: nowrap; }
+  .shift-table th { background: #f7f8fc; font-size: 11px; position: sticky; top: 0; z-index: 1; }
+  .shift-table th.staff-name { text-align: left; min-width: 90px; position: sticky; left: 0; z-index: 2; background: #eef0f7; }
+  .shift-table td.staff-name { text-align: left; font-weight: 600; font-size: 12.5px; position: sticky; left: 0; background: #fff; z-index: 1; border-right: 2px solid #d0d5e0; }
+  .shift-table .sun { color: #dc2626; background: #fff5f5; }
+  .shift-table .sat { color: #2563eb; background: #f0f4ff; }
+
+  .shift-cell { display: inline-block; width: 28px; height: 22px; line-height: 22px; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer; }
+  .shift-early { background: #dbeafe; color: #1d4ed8; }
+  .shift-day { background: #d1fae5; color: #065f46; }
+  .shift-late { background: #ffedd5; color: #c2410c; }
+  .shift-night { background: #e9d5ff; color: #7c3aed; }
+  .shift-ake { background: #f1f5f9; color: #94a3b8; }
+  .shift-off { color: #cbd5e1; }
+  .shift-holiday { background: #fef2f2; color: #ef4444; font-weight: 400; }
+
+  .shift-table .total-col { background: #f7f8fc; font-weight: 700; min-width: 32px; border-left: 2px solid #d0d5e0; }
+
+  /* Settings */
+  .setting-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f2f5; }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-label { font-size: 13px; font-weight: 600; min-width: 160px; }
+  .setting-value { font-size: 13px; }
+  input[type="number"], input[type="text"], input[type="time"], select { padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; }
+  input[type="number"] { width: 60px; }
+  .color-dot { width: 16px; height: 16px; border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 6px; }
+
+  /* Request Calendar */
+  .req-calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .req-day-header { padding: 6px; text-align: center; font-size: 11px; font-weight: 700; color: #64748b; }
+  .req-day { padding: 8px 4px; text-align: center; font-size: 12px; border-radius: 6px; cursor: pointer; border: 1.5px solid transparent; min-height: 40px; background: #fff; }
+  .req-day:hover { border-color: #6c8cff; }
+  .req-day.ng { background: #fef2f2; border-color: #fca5a5; }
+  .req-day.ng::after { content: "NG"; display: block; font-size: 10px; color: #dc2626; font-weight: 700; }
+  .req-day.yukyu { background: #eff6ff; border-color: #93c5fd; }
+  .req-day.yukyu::after { content: "有給"; display: block; font-size: 10px; color: #2563eb; font-weight: 700; }
+  .req-day.empty { background: transparent; cursor: default; }
+  .req-day.empty:hover { border-color: transparent; }
+
+  .staff-select { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .staff-chip { padding: 5px 12px; border-radius: 16px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid #e2e8f0; background: #fff; }
+  .staff-chip.active { background: #6c8cff; color: #fff; border-color: #6c8cff; }
+
+  /* Generate button area */
+  .generate-area { text-align: center; padding: 32px; }
+  .generate-area p { font-size: 14px; color: #64748b; margin-bottom: 16px; }
+  .btn-generate { padding: 14px 40px; font-size: 16px; border-radius: 12px; background: linear-gradient(135deg, #6c8cff, #a78bfa); color: #fff; border: none; cursor: pointer; font-weight: 700; box-shadow: 0 4px 14px rgba(108,140,255,0.3); transition: all 0.2s; }
+  .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(108,140,255,0.4); }
+
+  .constraint-warning { display: inline-flex; align-items: center; gap: 4px; background: #fef2f2; color: #dc2626; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+
+  .stats-row { display: flex; gap: 16px; margin-bottom: 20px; }
+  .stat-card { flex: 1; background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); text-align: center; }
+  .stat-card .num { font-size: 28px; font-weight: 800; color: #6c8cff; }
+  .stat-card .label { font-size: 11px; color: #64748b; margin-top: 4px; }
+
+  .action-bar { display: flex; gap: 10px; margin-bottom: 16px; justify-content: flex-end; }
+
+  @media print {
+    .sidebar, .header, .floor-tabs, .action-bar { display: none; }
+    .main { margin: 0; }
+    .content { padding: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h1>シフト管理</h1>
+    <p>介護施設シフト自動作成</p>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-item active" onclick="showPage('staff')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      スタッフ管理
+    </div>
+    <div class="nav-item" onclick="showPage('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      シフト設定
+    </div>
+    <div class="nav-item" onclick="showPage('request')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      希望休入力
+    </div>
+    <div class="nav-item" onclick="showPage('shift')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+      シフト表
+    </div>
+  </nav>
+  <div class="sidebar-footer">v1.0 - データはブラウザに保存されます</div>
+</div>
+
+<!-- Main Area -->
+<div class="main">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <h2 id="page-title">スタッフ管理</h2>
+      <div class="month-picker">
+        <button>&larr;</button>
+        <span>2026年 3月</span>
+        <button>&rarr;</button>
+      </div>
+    </div>
+    <div>
+      <button class="btn btn-outline" style="margin-right:8px">データ書出</button>
+      <button class="btn btn-outline">データ読込</button>
+    </div>
+  </div>
+
+  <!-- Floor Tabs -->
+  <div class="floor-tabs">
+    <div class="floor-tab active" onclick="switchFloor(this)">1F</div>
+    <div class="floor-tab" onclick="switchFloor(this)">2F</div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- ===== スタッフ管理 ===== -->
+    <div class="page active" id="page-staff">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div style="font-size:13px; color:#64748b;">1Fに配属されているスタッフ一覧</div>
+        <button class="btn btn-primary">+ スタッフ追加</button>
+      </div>
+      <div class="card" style="padding:0; overflow:hidden;">
+        <table>
+          <thead>
+            <tr><th style="width:40px">#</th><th>氏名</th><th>役職</th><th>リーダー</th><th>勤務可能種別</th><th>メモ</th><th style="width:120px">操作</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td><td>山田 太郎</td>
+              <td><span class="role-tag role-regular">正社員</span></td>
+              <td><span class="leader-badge"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>可</span></td>
+              <td><div class="shift-tags"><span class="shift-tag shift-tag-early">早</span><span class="shift-tag shift-tag-day">日</span><span class="shift-tag shift-tag-late">遅</span><span class="shift-tag shift-tag-night">夜</span></div></td>
+              <td></td>
+              <td><button class="btn btn-outline btn-sm" onclick="openModal()">編集</button> <button class="btn btn-danger btn-sm">削除</button></td>
+            </tr>
+            <tr>
+              <td>2</td><td>佐藤 花子</td>
+              <td><span class="role-tag role-regular">正社員</span></td>
+              <td><span class="leader-badge"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>可</span></td>
+              <td><div class="shift-tags"><span class="shift-tag shift-tag-early">早</span><span class="shift-tag shift-tag-day">日</span><span class="shift-tag shift-tag-late">遅</span><span class="shift-tag shift-tag-night">夜</span></div></td>
+              <td></td>
+              <td><button class="btn btn-outline btn-sm" onclick="openModal()">編集</button> <button class="btn btn-danger btn-sm">削除</button></td>
+            </tr>
+            <tr>
+              <td>3</td><td>鈴木 一郎</td>
+              <td><span class="role-tag role-regular">正社員</span></td>
+              <td><span class="leader-badge"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>可</span></td>
+              <td><div class="shift-tags"><span class="shift-tag shift-tag-early">早</span><span class="shift-tag shift-tag-day">日</span><span class="shift-tag shift-tag-late">遅</span><span class="shift-tag shift-tag-night">夜</span></div></td>
+              <td></td>
+              <td><button class="btn btn-outline btn-sm" onclick="openModal()">編集</button> <button class="btn btn-danger btn-sm">削除</button></td>
+            </tr>
+            <tr>
+              <td>4</td><td>田中 美咲</td>
+              <td><span class="role-tag role-part">パート</span></td>
+              <td><span class="leader-na">-</span></td>
+              <td><div class="shift-tags"><span class="shift-tag shift-tag-day">日</span><span class="shift-tag shift-tag-late">遅</span></div></td>
+              <td>週3日勤務</td>
+              <td><button class="btn btn-outline btn-sm" onclick="openModal()">編集</button> <button class="btn btn-danger btn-sm">削除</button></td>
+            </tr>
+            <tr>
+              <td>5</td><td>高橋 健一</td>
+              <td><span class="role-tag role-regular">正社員</span></td>
+              <td><span class="leader-badge"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>可</span></td>
+              <td><div class="shift-tags"><span class="shift-tag shift-tag-early">早</span><span class="shift-tag shift-tag-day">日</span><span class="shift-tag shift-tag-late">遅</span><span class="shift-tag shift-tag-night">夜</span></div></td>
+              <td></td>
+              <td><button class="btn btn-outline btn-sm" onclick="openModal()">編集</button> <button class="btn btn-danger btn-sm">削除</button></td>
+            </tr>
+            <tr>
+              <td>6</td><td>渡辺 あかり</td>
+              <td><span class="role-tag role-part">パート</span></td>
+              <td><span class="leader-na">-</span></td>
+              <td><div class="shift-tags"><span class="shift-tag shift-tag-day">日</span></div></td>
+              <td>土日不可</td>
+              <td><button class="btn btn-outline btn-sm" onclick="openModal()">編集</button> <button class="btn btn-danger btn-sm">削除</button></td>
+            </tr>
+            <tr>
+              <td>7</td><td>伊藤 大輔</td>
+              <td><span class="role-tag role-dispatch">派遣</span></td>
+              <td><span class="leader-na">-</span></td>
+              <td><div class="shift-tags"><span class="shift-tag shift-tag-early">早</span><span class="shift-tag shift-tag-day">日</span><span class="shift-tag shift-tag-night">夜</span></div></td>
+              <td></td>
+              <td><button class="btn btn-outline btn-sm" onclick="openModal()">編集</button> <button class="btn btn-danger btn-sm">削除</button></td>
+            </tr>
+            <tr>
+              <td>8</td><td>小林 さくら</td>
+              <td><span class="role-tag role-regular">正社員</span></td>
+              <td><span class="leader-na">-</span></td>
+              <td><div class="shift-tags"><span class="shift-tag shift-tag-early">早</span><span class="shift-tag shift-tag-day">日</span><span class="shift-tag shift-tag-late">遅</span><span class="shift-tag shift-tag-night">夜</span></div></td>
+              <td></td>
+              <td><button class="btn btn-outline btn-sm" onclick="openModal()">編集</button> <button class="btn btn-danger btn-sm">削除</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== シフト設定 ===== -->
+    <div class="page" id="page-settings">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+        <div class="card">
+          <div class="card-title">勤務種別設定</div>
+          <table>
+            <thead><tr><th>勤務名</th><th>略称</th><th>時間帯</th><th>色</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>早番</td><td>早</td><td>7:00 - 16:00</td><td><span class="color-dot" style="background:#3b82f6"></span></td><td><button class="btn btn-outline btn-sm">編集</button></td></tr>
+              <tr><td>日勤</td><td>日</td><td>9:00 - 18:00</td><td><span class="color-dot" style="background:#10b981"></span></td><td><button class="btn btn-outline btn-sm">編集</button></td></tr>
+              <tr><td>遅番</td><td>遅</td><td>11:00 - 20:00</td><td><span class="color-dot" style="background:#f59e0b"></span></td><td><button class="btn btn-outline btn-sm">編集</button></td></tr>
+              <tr><td>夜勤</td><td>夜</td><td>16:30 - 翌9:30</td><td><span class="color-dot" style="background:#8b5cf6"></span></td><td><button class="btn btn-outline btn-sm">編集</button></td></tr>
+              <tr><td>明け</td><td>明</td><td>-</td><td><span class="color-dot" style="background:#94a3b8"></span></td><td><button class="btn btn-outline btn-sm">編集</button></td></tr>
+            </tbody>
+          </table>
+          <button class="btn btn-outline" style="margin-top:12px">+ 勤務種別を追加</button>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-title">1F 必要人数 <span class="badge">1F</span></div>
+            <div class="setting-row"><span class="setting-label">早番 最低人数</span><input type="number" value="2"> 名</div>
+            <div class="setting-row"><span class="setting-label">日勤 最低人数</span><input type="number" value="3"> 名</div>
+            <div class="setting-row"><span class="setting-label">遅番 最低人数</span><input type="number" value="2"> 名</div>
+            <div class="setting-row"><span class="setting-label">夜勤 最低人数</span><input type="number" value="1"> 名</div>
+          </div>
+          <div class="card">
+            <div class="card-title">リーダー設定 <span class="badge" style="background:#f59e0b;color:#78350f;">リーダー</span></div>
+            <div class="setting-row"><span class="setting-label">日勤帯リーダー人数</span><input type="number" value="1"> 名/日</div>
+            <div class="setting-row">
+              <span class="setting-label">対象シフト</span>
+              <span class="setting-value">早番・日勤・遅番のいずれかに入る<br>リーダー可スタッフから1名を自動配置</span>
+            </div>
+            <div style="margin-top:10px; padding:10px; background:#fffbeb; border-radius:8px; font-size:12px; color:#92400e;">
+              <strong>現在のリーダー可スタッフ (1F):</strong> 山田太郎、佐藤花子、鈴木一郎、高橋健一 の4名
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">共通ルール</div>
+            <div class="setting-row"><span class="setting-label">連勤上限</span><input type="number" value="5"> 日</div>
+            <div class="setting-row"><span class="setting-label">月の公休日数</span><input type="number" value="9"> 日</div>
+            <div class="setting-row"><span class="setting-label">夜勤明け翌日</span><span class="setting-value" style="color:#059669; font-weight:600;">自動で休みにする &#10003;</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 希望休入力 ===== -->
+    <div class="page" id="page-request">
+      <div class="card">
+        <div class="card-title">スタッフ選択</div>
+        <div class="staff-select">
+          <div class="staff-chip active">山田 太郎</div>
+          <div class="staff-chip">佐藤 花子</div>
+          <div class="staff-chip">鈴木 一郎</div>
+          <div class="staff-chip">田中 美咲</div>
+          <div class="staff-chip">高橋 健一</div>
+          <div class="staff-chip">渡辺 あかり</div>
+          <div class="staff-chip">伊藤 大輔</div>
+          <div class="staff-chip">小林 さくら</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">2026年 3月 - 山田 太郎 の希望休</div>
+        <div style="font-size:12px; color:#64748b; margin-bottom:12px;">日付をクリックで希望休(NG)を設定。もう一度クリックで有給に変更。3回目で解除。</div>
+        <div class="req-calendar">
+          <div class="req-day-header" style="color:#dc2626">日</div><div class="req-day-header">月</div><div class="req-day-header">火</div><div class="req-day-header">水</div><div class="req-day-header">木</div><div class="req-day-header">金</div><div class="req-day-header" style="color:#2563eb">土</div>
+          <div class="req-day" style="color:#dc2626">1</div><div class="req-day">2</div><div class="req-day">3</div><div class="req-day">4</div><div class="req-day ng">5</div><div class="req-day ng">6</div><div class="req-day" style="color:#2563eb">7</div>
+          <div class="req-day" style="color:#dc2626">8</div><div class="req-day">9</div><div class="req-day">10</div><div class="req-day">11</div><div class="req-day">12</div><div class="req-day">13</div><div class="req-day" style="color:#2563eb">14</div>
+          <div class="req-day" style="color:#dc2626">15</div><div class="req-day">16</div><div class="req-day">17</div><div class="req-day">18</div><div class="req-day">19</div><div class="req-day yukyu">20</div><div class="req-day" style="color:#2563eb">21</div>
+          <div class="req-day" style="color:#dc2626">22</div><div class="req-day">23</div><div class="req-day">24</div><div class="req-day">25</div><div class="req-day">26</div><div class="req-day">27</div><div class="req-day" style="color:#2563eb">28</div>
+          <div class="req-day" style="color:#dc2626">29</div><div class="req-day">30</div><div class="req-day">31</div><div class="req-day empty"></div><div class="req-day empty"></div><div class="req-day empty"></div><div class="req-day empty"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== シフト表 ===== -->
+    <div class="page" id="page-shift">
+      <div class="stats-row">
+        <div class="stat-card"><div class="num">8</div><div class="label">1F スタッフ数</div></div>
+        <div class="stat-card"><div class="num" style="color:#10b981">0</div><div class="label">制約違反</div></div>
+        <div class="stat-card"><div class="num" style="color:#f59e0b">31</div><div class="label">3月の日数</div></div>
+        <div class="stat-card"><div class="num" style="color:#8b5cf6">夜勤 1.3</div><div class="label">平均 回/人</div></div>
+      </div>
+
+      <div class="generate-area card">
+        <p>設定とスタッフ情報をもとに、シフトを自動作成します。</p>
+        <button class="btn-generate" onclick="showShiftTable()">シフトを自動作成する</button>
+      </div>
+
+      <div id="shift-result" style="display:none;">
+        <div class="action-bar">
+          <button class="btn btn-outline">&#8635; 再作成</button>
+          <button class="btn btn-outline">印刷プレビュー</button>
+          <button class="btn btn-success">PDF出力</button>
+        </div>
+        <div class="card" style="padding:12px; overflow-x:auto;">
+          <div class="shift-table-wrap">
+            <table class="shift-table" id="shift-table-body">
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Staff Edit Modal -->
+<div class="modal-overlay" id="staff-modal">
+  <div class="modal">
+    <h3>スタッフ編集</h3>
+    <div class="modal-row">
+      <label>氏名</label>
+      <input type="text" value="山田 太郎">
+    </div>
+    <div class="modal-row">
+      <label>役職</label>
+      <select>
+        <option selected>正社員</option>
+        <option>パート</option>
+        <option>派遣</option>
+      </select>
+    </div>
+    <div class="modal-row">
+      <label>リーダー可</label>
+      <div class="toggle-row">
+        <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+        <span class="toggle-label-text">日勤帯のリーダーを担当できる</span>
+      </div>
+    </div>
+    <div class="modal-row" style="align-items:flex-start;">
+      <label style="padding-top:6px;">勤務可能種別</label>
+      <div class="shift-check-group">
+        <input type="checkbox" id="chk-early" class="shift-check" checked>
+        <label for="chk-early" class="shift-check-label label-early">早番</label>
+        <input type="checkbox" id="chk-day" class="shift-check" checked>
+        <label for="chk-day" class="shift-check-label label-day">日勤</label>
+        <input type="checkbox" id="chk-late" class="shift-check" checked>
+        <label for="chk-late" class="shift-check-label label-late">遅番</label>
+        <input type="checkbox" id="chk-night" class="shift-check" checked>
+        <label for="chk-night" class="shift-check-label label-night">夜勤</label>
+      </div>
+    </div>
+    <div class="modal-row">
+      <label>メモ</label>
+      <input type="text" value="" placeholder="備考があれば入力">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="closeModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function openModal() {
+  document.getElementById('staff-modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('staff-modal').classList.remove('open');
+}
+document.getElementById('staff-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+const staffData = [
+  { name:'山田 太郎', isPart:false, canLead:true,  shifts:['早','日','遅','夜'] },
+  { name:'佐藤 花子', isPart:false, canLead:true,  shifts:['早','日','遅','夜'] },
+  { name:'鈴木 一郎', isPart:false, canLead:true,  shifts:['早','日','遅','夜'] },
+  { name:'田中 美咲', isPart:true,  canLead:false, shifts:['日','遅'] },
+  { name:'高橋 健一', isPart:false, canLead:true,  shifts:['早','日','遅','夜'] },
+  { name:'渡辺 あかり',isPart:true,  canLead:false, shifts:['日'] },
+  { name:'伊藤 大輔', isPart:false, canLead:false, shifts:['早','日','夜'] },
+  { name:'小林 さくら',isPart:false, canLead:false, shifts:['早','日','遅','夜'] },
+];
+const staff = staffData.map(s => s.name);
+const shifts = ['早','日','遅','夜','明','休'];
+const shiftClasses = {'早':'shift-early','日':'shift-day','遅':'shift-late','夜':'shift-night','明':'shift-ake','休':'shift-off','有':'shift-holiday'};
+const dayShifts = ['早','日','遅'];
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const titles = {staff:'スタッフ管理', settings:'シフト設定', request:'希望休入力', shift:'シフト表'};
+  document.getElementById('page-title').textContent = titles[name];
+  const idx = ['staff','settings','request','shift'].indexOf(name);
+  document.querySelectorAll('.nav-item')[idx].classList.add('active');
+}
+
+function switchFloor(el) {
+  document.querySelectorAll('.floor-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function getDayOfWeek(year, month, day) {
+  return new Date(year, month - 1, day).getDay();
+}
+
+function showShiftTable() {
+  document.querySelector('.generate-area').style.display = 'none';
+  document.getElementById('shift-result').style.display = 'block';
+  buildShiftTable();
+}
+
+function buildShiftTable() {
+  const year = 2026, month = 3;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const dayNames = ['日','月','火','水','木','金','土'];
+
+  let headerRow1 = '<tr><th class="staff-name" rowspan="2">スタッフ</th>';
+  let headerRow2 = '<tr>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = getDayOfWeek(year, month, d);
+    const cls = dow === 0 ? 'sun' : dow === 6 ? 'sat' : '';
+    headerRow1 += `<th class="${cls}">${d}</th>`;
+    headerRow2 += `<th class="${cls}">${dayNames[dow]}</th>`;
+  }
+  headerRow1 += '<th class="total-col">出勤</th><th class="total-col">夜勤</th><th class="total-col">公休</th><th class="total-col">L回</th></tr>';
+  headerRow2 += '<th class="total-col">日数</th><th class="total-col">回数</th><th class="total-col">日数</th><th class="total-col">数</th></tr>';
+
+  const allShifts = [];
+  staffData.forEach((sd, si) => {
+    const assignments = [];
+    let prevShift = '';
+    let offDays = 0, nightCount = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = getDayOfWeek(year, month, d);
+      let shift;
+      if (prevShift === '夜') { shift = '明'; }
+      else if (prevShift === '明') { shift = '休'; }
+      else if (sd.name === '山田 太郎' && (d === 5 || d === 6 || d === 20)) { shift = '休'; }
+      else if (sd.isPart && (dow === 0 || dow === 6)) { shift = '休'; }
+      else if (offDays < 9 && Math.random() < 0.15 && prevShift !== '休') { shift = '休'; }
+      else if (!sd.isPart && sd.shifts.includes('夜') && Math.random() < 0.12 && nightCount < 4) { shift = '夜'; nightCount++; }
+      else {
+        const opts = sd.shifts.filter(s => s !== '夜');
+        shift = opts[Math.floor(Math.random() * opts.length)] || '日';
+      }
+      if (shift === '休' || shift === '明') offDays++;
+      assignments.push(shift);
+      prevShift = shift;
+    }
+    allShifts.push(assignments);
+  });
+
+  const leaderAssign = [];
+  for (let d = 0; d < daysInMonth; d++) {
+    const candidates = [];
+    staffData.forEach((sd, si) => {
+      if (sd.canLead && dayShifts.includes(allShifts[si][d])) {
+        candidates.push(si);
+      }
+    });
+    leaderAssign.push(candidates.length > 0 ? candidates[d % candidates.length] : -1);
+  }
+
+  let body = '';
+  staffData.forEach((sd, si) => {
+    let row = `<tr><td class="staff-name">${sd.name}</td>`;
+    let workDays = 0, nightCount = 0, offDays = 0, leaderCount = 0;
+    for (let d = 0; d < daysInMonth; d++) {
+      const dow = getDayOfWeek(year, month, d + 1);
+      const cls = dow === 0 ? 'sun' : dow === 6 ? 'sat' : '';
+      const shift = allShifts[si][d];
+      if (shift === '休' || shift === '明') offDays++;
+      else workDays++;
+      if (shift === '夜') nightCount++;
+      const isLeader = leaderAssign[d] === si;
+      if (isLeader) leaderCount++;
+      const scls = shiftClasses[shift] || '';
+      const lcls = isLeader ? ' shift-cell-leader' : '';
+      row += `<td class="${cls}"><span class="shift-cell ${scls}${lcls}" style="position:relative">${shift}</span></td>`;
+    }
+    row += `<td class="total-col">${workDays}</td><td class="total-col">${nightCount}</td><td class="total-col">${offDays}</td><td class="total-col">${leaderCount > 0 ? leaderCount : '-'}</td></tr>`;
+    body += row;
+  });
+
+  let reqRow = '<tr style="background:#f7f8fc; font-weight:700;"><td class="staff-name" style="background:#eef0f7;">必要人数</td>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = getDayOfWeek(year, month, d);
+    const cls = dow === 0 ? 'sun' : dow === 6 ? 'sat' : '';
+    reqRow += `<td class="${cls}" style="font-size:10px;color:#64748b;">早2日3<br>遅2夜1<br><span style="color:#b45309">L1</span></td>`;
+  }
+  reqRow += '<td class="total-col"></td><td class="total-col"></td><td class="total-col"></td><td class="total-col"></td></tr>';
+
+  document.getElementById('shift-table-body').innerHTML = headerRow1 + headerRow2 + body + reqRow;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>シフト自動作成アプリ 操作マニュアル</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-light: #eff6ff;
+      --accent: #7c3aed;
+      --success: #059669;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Hiragino Sans', 'Meiryo', 'Yu Gothic', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+      font-size: 15px;
+    }
+
+    /* ---- レイアウト ---- */
+    .layout { display: flex; min-height: 100vh; }
+
+    /* サイドバー */
+    .sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 0 0 32px;
+    }
+    .sidebar-header {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-header h1 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1.4;
+    }
+    .sidebar-header p { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+    .sidebar nav { padding: 12px 0; }
+    .nav-section { padding: 8px 20px 4px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+    .nav-link {
+      display: block;
+      padding: 7px 20px;
+      font-size: 13px;
+      color: var(--text);
+      text-decoration: none;
+      border-left: 3px solid transparent;
+      transition: all .15s;
+    }
+    .nav-link:hover { background: var(--primary-light); color: var(--primary); border-left-color: var(--primary); }
+    .nav-link.sub { padding-left: 36px; font-size: 12.5px; color: var(--text-muted); }
+    .nav-link.sub:hover { color: var(--primary); }
+
+    /* メインコンテンツ */
+    .main { flex: 1; padding: 40px 56px; max-width: 900px; }
+
+    /* ---- セクション ---- */
+    section { margin-bottom: 60px; scroll-margin-top: 24px; }
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      border-bottom: 2px solid var(--primary);
+      padding-bottom: 8px;
+      margin-bottom: 20px;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h2 .icon { font-size: 22px; }
+    h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin: 28px 0 12px;
+      padding-left: 10px;
+      border-left: 4px solid var(--primary);
+    }
+    h4 { font-size: 14px; font-weight: 700; margin: 20px 0 8px; color: var(--text-muted); }
+    p { margin-bottom: 12px; }
+
+    /* ---- ヒーロー ---- */
+    .hero {
+      background: linear-gradient(135deg, #1d4ed8 0%, #7c3aed 100%);
+      color: white;
+      padding: 36px 40px;
+      border-radius: 16px;
+      margin-bottom: 48px;
+    }
+    .hero h1 { font-size: 26px; font-weight: 800; margin-bottom: 8px; }
+    .hero p { opacity: .85; font-size: 14px; margin: 0; }
+
+    /* ---- コンポーネント ---- */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+    .card-title { font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .badge-blue { background: #dbeafe; color: #1d4ed8; }
+    .badge-purple { background: #e9d5ff; color: #6d28d9; }
+    .badge-green { background: #d1fae5; color: #065f46; }
+    .badge-orange { background: #ffedd5; color: #c2410c; }
+    .badge-amber { background: #fef3c7; color: #92400e; }
+    .badge-teal { background: #ccfbf1; color: #0f766e; }
+    .badge-slate { background: #f1f5f9; color: #475569; }
+
+    .step {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+      align-items: flex-start;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .step-body { flex: 1; }
+    .step-body strong { font-size: 14.5px; display: block; margin-bottom: 4px; }
+    .step-body p { font-size: 13.5px; color: var(--text-muted); margin: 0; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13.5px;
+    }
+    th {
+      background: var(--bg);
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+    td {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tr:nth-child(even) td { background: #fafbfc; }
+
+    .callout {
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 13.5px;
+      display: flex;
+      gap: 10px;
+    }
+    .callout-icon { font-size: 18px; flex-shrink: 0; line-height: 1; }
+    .callout-body { flex: 1; }
+    .callout-body strong { display: block; margin-bottom: 4px; }
+    .callout.info { background: #eff6ff; border-left: 4px solid #2563eb; }
+    .callout.tip { background: #f0fdf4; border-left: 4px solid #16a34a; }
+    .callout.warn { background: #fffbeb; border-left: 4px solid #d97706; }
+    .callout.danger { background: #fef2f2; border-left: 4px solid #dc2626; }
+
+    .shift-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      margin: 2px;
+    }
+    .key {
+      display: inline-block;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 1px 8px;
+      font-size: 12px;
+      font-family: monospace;
+    }
+
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin: 16px 0;
+    }
+    .flow-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 12px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      font-size: 13.5px;
+    }
+    .flow-item:first-child { border-radius: 8px 8px 0 0; }
+    .flow-item:last-child { border-bottom: 1px solid var(--border); border-radius: 0 0 8px 8px; }
+    .flow-item .phase {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 2px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      min-width: 80px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .flow-item .desc { color: var(--text); }
+
+    .toc-list { list-style: none; counter-reset: toc; }
+    .toc-list li { counter-increment: toc; }
+    .toc-list a {
+      display: block;
+      padding: 6px 0;
+      text-decoration: none;
+      color: var(--primary);
+      font-size: 14px;
+      border-bottom: 1px dashed var(--border);
+    }
+    .toc-list a:hover { text-decoration: underline; }
+
+    code {
+      font-family: 'Courier New', monospace;
+      background: #f1f5f9;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    @media print {
+      .sidebar { display: none; }
+      .main { padding: 20px; max-width: 100%; }
+      .hero { background: #1d4ed8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- サイドバー -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>📋 シフト自動作成<br>操作マニュアル</h1>
+      <p>v1.3 &nbsp;|&nbsp; 2026-02-25</p>
+    </div>
+    <nav>
+      <div class="nav-section">はじめに</div>
+      <a class="nav-link" href="#overview">アプリの概要</a>
+      <a class="nav-link" href="#quickstart">クイックスタート</a>
+
+      <div class="nav-section">画面別操作</div>
+      <a class="nav-link" href="#staff">スタッフ管理</a>
+      <a class="nav-link sub" href="#staff-add">スタッフの追加</a>
+      <a class="nav-link sub" href="#staff-fields">設定項目</a>
+      <a class="nav-link" href="#settings">シフト設定</a>
+      <a class="nav-link sub" href="#settings-req">必要人数の設定</a>
+      <a class="nav-link sub" href="#settings-duty">業務人数の設定</a>
+      <a class="nav-link" href="#pair">相性設定</a>
+      <a class="nav-link" href="#shifttable">シフト表</a>
+      <a class="nav-link sub" href="#auto">自動生成</a>
+      <a class="nav-link sub" href="#manual-input">手入力</a>
+      <a class="nav-link sub" href="#export">出力</a>
+
+      <div class="nav-section">シフト種別</div>
+      <a class="nav-link" href="#shift-types">一覧と表示記号</a>
+
+      <div class="nav-section">自動生成のしくみ</div>
+      <a class="nav-link" href="#algo">配置の流れ（フェーズ）</a>
+      <a class="nav-link" href="#constraints">ルールの一覧</a>
+
+      <div class="nav-section">データ管理</div>
+      <a class="nav-link" href="#data">バックアップと復元</a>
+
+      <div class="nav-section">よくある質問</div>
+      <a class="nav-link" href="#faq">FAQ</a>
+    </nav>
+  </aside>
+
+  <!-- メイン -->
+  <main class="main">
+
+    <!-- ヒーロー -->
+    <div class="hero">
+      <h1>🏥 シフト自動作成アプリ 操作マニュアル</h1>
+      <p>介護施設（1F・2F）のシフト表を自動で作成・管理するアプリの使い方を説明します。</p>
+    </div>
+
+    <!-- 目次 -->
+    <section id="toc">
+      <h2><span class="icon">📑</span>目次</h2>
+      <ol class="toc-list">
+        <li><a href="#overview">アプリの概要</a></li>
+        <li><a href="#quickstart">クイックスタート（初めての方へ）</a></li>
+        <li><a href="#staff">スタッフ管理</a></li>
+        <li><a href="#settings">シフト設定</a></li>
+        <li><a href="#pair">相性設定（ペア設定）</a></li>
+        <li><a href="#shifttable">シフト表の操作</a></li>
+        <li><a href="#shift-types">シフト種別と表示記号</a></li>
+        <li><a href="#algo">自動生成のしくみ</a></li>
+        <li><a href="#data">データのバックアップと復元</a></li>
+        <li><a href="#faq">よくある質問（FAQ）</a></li>
+      </ol>
+    </section>
+
+    <!-- 1. 概要 -->
+    <section id="overview">
+      <h2><span class="icon">📌</span>1. アプリの概要</h2>
+      <p>このアプリは、介護施設のシフト表を自動で作成・管理するためのツールです。1F・2F ごとにスタッフと設定を管理し、ワンクリックでひと月分のシフトを自動生成します。</p>
+
+      <div class="card">
+        <div class="card-title">主な機能</div>
+        <table>
+          <tr><th>機能</th><th>説明</th></tr>
+          <tr><td>📋 スタッフ管理</td><td>スタッフの登録・編集・削除。担当できるシフトや業務を個人ごとに設定</td></tr>
+          <tr><td>⚙️ シフト設定</td><td>フロアごとに「何曜日に何人必要か」を設定</td></tr>
+          <tr><td>🤝 相性設定</td><td>夜勤ペアの NG・推奨を設定</td></tr>
+          <tr><td>📅 シフト表</td><td>シフトの自動生成・手入力・Excel/PDF 出力</td></tr>
+          <tr><td>💾 データ管理</td><td>JSON でバックアップ・復元</td></tr>
+        </table>
+      </div>
+
+      <div class="callout info">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">
+          <strong>インターネット不要・データはブラウザに保存</strong>
+          このアプリはオフラインで動作します。データはお使いのブラウザ（LocalStorage）に自動保存されるため、ページを閉じても消えません。
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. クイックスタート -->
+    <section id="quickstart">
+      <h2><span class="icon">🚀</span>2. クイックスタート</h2>
+      <p>初めてお使いになる方向けに、シフトを作成するまでの全体の流れを説明します。</p>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>スタッフを登録する</strong>
+          <p>「スタッフ管理」画面でスタッフの氏名・フロア・担当できるシフトなどを入力します。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong>必要人数を設定する</strong>
+          <p>「シフト設定」画面で「早番・日勤・夜勤が何人必要か」を曜日ごとに設定します。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <strong>（必要なら）ペアの相性を設定する</strong>
+          <p>「相性設定」画面で NG ペアや推奨ペアを登録します。（任意）</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <strong>シフトを自動生成する</strong>
+          <p>「シフト表」画面を開き、対象の月を選んで「自動作成」ボタンを押します。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <strong>手修正して出力する</strong>
+          <p>必要に応じてセルを手修正し、Excel または PDF で出力します。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. スタッフ管理 -->
+    <section id="staff">
+      <h2><span class="icon">👥</span>3. スタッフ管理</h2>
+      <p>スタッフ管理画面では、スタッフの登録・編集・削除と並び順の変更ができます。</p>
+
+      <h3 id="staff-add">スタッフの追加方法</h3>
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>「＋ スタッフ追加」ボタンをクリック</strong>
+          <p>画面右上のボタンを押すと入力パネルが開きます。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong>情報を入力して「保存」を押す</strong>
+          <p>氏名は必須です。他の項目は後から変更できます。</p>
+        </div>
+      </div>
+
+      <h3 id="staff-fields">設定項目の説明</h3>
+      <table>
+        <tr><th>項目</th><th>説明</th></tr>
+        <tr><td><strong>氏名</strong></td><td>（必須）スタッフの名前</td></tr>
+        <tr><td><strong>フロア</strong></td><td>1F または 2F。フロアをまたいだ配置はしません</td></tr>
+        <tr><td><strong>雇用形態</strong></td><td>正社員・パート・派遣。シフト表の表示色に影響します</td></tr>
+        <tr><td><strong>担当できるシフト</strong></td><td>チェックしたシフトにのみ自動配置されます</td></tr>
+        <tr><td><strong>担当できる業務</strong></td><td>LD・入浴・フロア・排泄の担当可否を設定</td></tr>
+        <tr><td><strong>月出勤日数</strong></td><td>月の最大出勤日数。設定するとそれ以上の勤務を割り当てません</td></tr>
+        <tr><td><strong>週出勤日数</strong></td><td>週の最大出勤日数</td></tr>
+        <tr><td><strong>出勤できない曜日</strong></td><td>ボタンで選択。選んだ曜日は必ず休みになります</td></tr>
+        <tr><td><strong>夜勤専従</strong></td><td>ON にすると日勤に配置されません。月の最低・最高夜勤回数も設定可能</td></tr>
+        <tr><td><strong>短時間（I 表示）</strong></td><td>ON にするとシフト表で日勤が「I」（ティール色）表示されます</td></tr>
+        <tr><td><strong>メモ</strong></td><td>自由記述。シフト生成には影響しません</td></tr>
+      </table>
+
+      <div class="callout tip">
+        <span class="callout-icon">✅</span>
+        <div class="callout-body">
+          <strong>パートスタッフの表示について</strong>
+          パートスタッフ（isShortTime=OFF）の日勤はシフト表で「H」（アンバー色）と表示されます。<br>
+          短時間勤務スタッフ（isShortTime=ON）は「I」（ティール色）と表示されます。
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. シフト設定 -->
+    <section id="settings">
+      <h2><span class="icon">⚙️</span>4. シフト設定</h2>
+      <p>フロアごとの基本ルールを設定します。フロアタブで 1F / 2F を切り替えて設定してください。</p>
+
+      <h3 id="settings-req">シフト必要人数の設定</h3>
+      <p>「早番・日勤・遅番・夜勤」それぞれについて、<strong>曜日ごとに何人必要か</strong>を設定します。「一括」列を変更すると全曜日に一括反映されます。</p>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">
+          <strong>「研修・有給・午前休・午後休・短時間」は設定欄に表示されません</strong>
+          これらは手動入力専用のシフトのため、必要人数の設定は不要です。
+        </div>
+      </div>
+
+      <h3 id="settings-duty">業務必要人数の設定</h3>
+      <p>LD（リーダー）・入浴・フロア・排泄について、曜日ごとの必要人数を設定します。</p>
+
+      <table>
+        <tr><th>設定項目</th><th>説明</th></tr>
+        <tr><td><strong>公休日数</strong></td><td>月に確保すべき公休の目標日数（スタッフ全員に適用）</td></tr>
+        <tr><td><strong>最大連続出勤日数</strong></td><td>この日数を超えた連勤は自動的に休みにします。前月末の連勤も引き継ぎます</td></tr>
+        <tr><td><strong>日勤リーダー人数</strong></td><td>1日当たりのリーダーを何人配置するか</td></tr>
+      </table>
+    </section>
+
+    <!-- 5. 相性設定 -->
+    <section id="pair">
+      <h2><span class="icon">🤝</span>5. 相性設定（ペア設定）</h2>
+      <p>夜勤ペアに関して「一緒に入れたくない（NG）」や「優先的に組ませたい（推奨）」を設定します。</p>
+
+      <table>
+        <tr><th>種別</th><th>効果</th></tr>
+        <tr><td><span class="badge badge-slate">NG</span></td><td>このペアを同じ夜勤に配置しません</td></tr>
+        <tr><td><span class="badge badge-green">推奨</span></td><td>可能な限り同じ夜勤に組もうとします</td></tr>
+      </table>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          <strong>夜勤可能スタッフのみが候補に表示されます</strong>
+          担当できるシフトに「夜勤」がないスタッフは相性設定の選択肢に出てきません。スタッフ管理で「夜勤」をチェックしてください。
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. シフト表 -->
+    <section id="shifttable">
+      <h2><span class="icon">📅</span>6. シフト表の操作</h2>
+      <p>シフト表画面がメインの作業画面です。月と フロアを選んで使います。</p>
+
+      <h3 id="auto">自動生成</h3>
+      <table>
+        <tr><th>ボタン</th><th>動作</th></tr>
+        <tr><td><strong>空欄を自動で埋める</strong></td><td>手入力済みのセルはそのままにして、空のセルだけを自動生成します</td></tr>
+        <tr><td><strong>作り直す</strong></td><td>自動生成した部分をすべてリセットし、手入力だけ残して再生成します</td></tr>
+        <tr><td><strong>クリア</strong></td><td>全セルを削除します（手入力も含む）</td></tr>
+      </table>
+
+      <div class="callout info">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">
+          <strong>前月データを引き継ぐ</strong>
+          前月末が夜勤で終わったスタッフは、自動生成で1日目が「明け」に設定されます。また、前月末の連続出勤日数も引き継いで最大連勤ルールに反映されます。
+        </div>
+      </div>
+
+      <h3 id="manual-input">セルの手入力</h3>
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>セルをクリックするとポップアップが表示</strong>
+          <p>「空欄（なし）」「休み」「各シフト種別」がボタンで選べます。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong>シフトを選ぶと即反映</strong>
+          <p>夜勤を選ぶと翌日に「明け」が自動挿入されます。夜勤を別のシフトに変更すると「明け」が自動削除されます。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <strong>手入力マーク（青ドット）がつく</strong>
+          <p>手入力したセルには青いドットが表示されます。「作り直す」を実行しても手入力セルは保護されます。</p>
+        </div>
+      </div>
+
+      <h3>コメントの入力</h3>
+      <p>各セルを長押し（またはコメントアイコンをクリック）して、その日・そのスタッフへのメモを入力できます。コメントはシフト表上に表示されます。</p>
+
+      <h3>統計行・充足状況行</h3>
+      <table>
+        <tr><th>行</th><th>内容</th></tr>
+        <tr><td><strong>統計行</strong></td><td>各スタッフの出勤日数（半休・短時間除く）・夜勤回数・公休日数</td></tr>
+        <tr><td><strong>充足状況行（一番下）</strong></td><td>必要人数を満たしているかを色で表示。不足は赤、充足は緑</td></tr>
+      </table>
+
+      <h3 id="export">Excel / PDF 出力</h3>
+      <table>
+        <tr><th>出力形式</th><th>内容</th></tr>
+        <tr><td><strong>Excel 出力</strong></td><td>スタッフ名・日付・シフト記号・統計（出勤/夜勤/公休）列を含む .xlsx ファイル</td></tr>
+        <tr><td><strong>PDF 出力</strong></td><td>A4 横向きの印刷用 PDF。ブラウザの印刷ダイアログが開きます</td></tr>
+      </table>
+    </section>
+
+    <!-- 7. シフト種別 -->
+    <section id="shift-types">
+      <h2><span class="icon">🏷</span>7. シフト種別と表示記号</h2>
+
+      <table>
+        <tr><th>記号</th><th>名称</th><th>時間</th><th>区分</th></tr>
+        <tr>
+          <td><span class="shift-pill" style="background:#dbeafe;color:#1d4ed8">L</span></td>
+          <td>早番</td><td>08:00〜16:30</td><td><span class="badge badge-blue">自動配置</span></td>
+        </tr>
+        <tr>
+          <td><span class="shift-pill" style="background:#d1fae5;color:#065f46">B</span></td>
+          <td>日勤</td><td>08:30〜17:00</td><td><span class="badge badge-blue">自動配置</span></td>
+        </tr>
+        <tr>
+          <td><span class="shift-pill" style="background:#ffedd5;color:#c2410c">U</span></td>
+          <td>遅番</td><td>10:30〜19:00</td><td><span class="badge badge-blue">自動配置</span></td>
+        </tr>
+        <tr>
+          <td><span class="shift-pill" style="background:#e9d5ff;color:#7c3aed">○</span></td>
+          <td>夜勤</td><td>16:30〜翌09:00</td><td><span class="badge badge-blue">自動配置</span></td>
+        </tr>
+        <tr>
+          <td><span class="shift-pill" style="background:#f1f5f9;color:#94a3b8">×</span></td>
+          <td>明け</td><td>（夜勤の翌日）</td><td><span class="badge badge-slate">自動挿入</span></td>
+        </tr>
+        <tr>
+          <td><span class="shift-pill" style="background:#ccfbf1;color:#0d9488">I</span></td>
+          <td>短時間</td><td>09:00〜16:00</td><td><span class="badge badge-blue">自動配置</span></td>
+        </tr>
+        <tr>
+          <td><span class="shift-pill" style="background:#fef3c7;color:#92400e">H</span></td>
+          <td>パート日勤表示</td><td>（日勤の表示変更）</td><td><span class="badge badge-amber">パート専用表示</span></td>
+        </tr>
+        <tr>
+          <td><span class="shift-pill" style="background:#cffafe;color:#0891b2">研</span></td>
+          <td>研修</td><td>09:00〜17:00</td><td><span class="badge badge-slate">手入力専用</span></td>
+        </tr>
+        <tr>
+          <td><span class="shift-pill" style="background:#e0e7ff;color:#4338ca">有</span></td>
+          <td>有給</td><td>—</td><td><span class="badge badge-slate">手入力専用</span></td>
+        </tr>
+        <tr>
+          <td><span class="shift-pill" style="background:#fce7f3;color:#be185d">B2</span></td>
+          <td>午前休</td><td>午後のみ出勤</td><td><span class="badge badge-slate">手入力専用</span></td>
+        </tr>
+        <tr>
+          <td><span class="shift-pill" style="background:#fef9c3;color:#b45309">B1</span></td>
+          <td>午後休</td><td>午前のみ出勤</td><td><span class="badge badge-slate">手入力専用</span></td>
+        </tr>
+      </table>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">
+          <strong>「研修・有給・午前休・午後休・短時間」は出勤日数にカウントされません</strong>
+          シフト表の統計行では、これらのシフトは「出勤日数」に含まれず、公休としても扱われません。月のカウントには「早番・日勤・遅番・夜勤」のみ含まれます。
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. 自動生成のしくみ -->
+    <section id="algo">
+      <h2><span class="icon">🤖</span>8. 自動生成のしくみ</h2>
+      <p>自動生成は1日ずつ順番に処理し、以下の順番でシフトを埋めていきます。</p>
+
+      <div class="flow">
+        <div class="flow-item">
+          <span class="phase">Phase 0</span>
+          <span class="desc">前日（または前月末）が夜勤のスタッフを必ず「明け」にする</span>
+        </div>
+        <div class="flow-item">
+          <span class="phase">Phase 0.5</span>
+          <span class="desc">手入力済みのシフトをそのまま反映する</span>
+        </div>
+        <div class="flow-item">
+          <span class="phase">Phase 1</span>
+          <span class="desc">出勤できない曜日のスタッフを「休み」にする</span>
+        </div>
+        <div class="flow-item">
+          <span class="phase">Phase 2</span>
+          <span class="desc">夜勤に入るスタッフを決める（ペア相性・クールダウンを考慮）</span>
+        </div>
+        <div class="flow-item">
+          <span class="phase">Phase 3</span>
+          <span class="desc">日勤・早番・遅番を必要人数分埋める（業務担当者を優先考慮）</span>
+        </div>
+        <div class="flow-item">
+          <span class="phase">Phase 4</span>
+          <span class="desc">リーダーを決める（今月のリーダー回数が少ない人を優先）</span>
+        </div>
+        <div class="flow-item">
+          <span class="phase">Phase 5</span>
+          <span class="desc">残りのスタッフに「出勤」または「休み」を割り当てる（公休日数のペースに合わせて判断）</span>
+        </div>
+        <div class="flow-item">
+          <span class="phase">Phase 6</span>
+          <span class="desc">日勤スタッフに「LD・入浴・フロア・排泄」などの業務を割り振る（月間担当回数が均等になるよう調整）</span>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="callout-icon">🌙</span>
+        <div class="callout-body">
+          <strong>夜勤専従スタッフのクールダウン機能</strong>
+          夜勤専従スタッフの月最低回数が達成されたあとは、夜勤が月全体に均等に広がるよう「クールダウン期間」を設けます。これにより月末に夜勤が固まるのを防ぎます。
+        </div>
+      </div>
+
+      <h3 id="constraints">配置ルール一覧</h3>
+      <h4>🔴 ハード制約（必ず守る）</h4>
+      <table>
+        <tr><th>ルール</th><th>詳細</th></tr>
+        <tr><td>夜勤→必ず明け</td><td>前日が夜勤なら翌日は必ず「明け」（手入力より優先）</td></tr>
+        <tr><td>明け→夜か休みのみ</td><td>明けの翌日は「夜勤」か「休み」しか入れない</td></tr>
+        <tr><td>最大連勤</td><td>設定した連続出勤日数を超えない（前月引き継ぎ対応）</td></tr>
+        <tr><td>月出勤上限</td><td>個人の月出勤日数上限を超えない</td></tr>
+        <tr><td>出勤不可曜日</td><td>設定した曜日は必ず休みになる</td></tr>
+        <tr><td>NG ペア</td><td>NG 設定されたペアは同じ夜勤に入れない</td></tr>
+      </table>
+
+      <h4>🟡 ソフト制約（できる限り守る）</h4>
+      <table>
+        <tr><th>ルール</th><th>詳細</th></tr>
+        <tr><td>公休日数</td><td>全スタッフで月の公休目標日数を達成しようとする</td></tr>
+        <tr><td>月末の救済</td><td>残り日数で公休が確保できなくなる前に強制休み</td></tr>
+        <tr><td>夜勤回数均等化</td><td>スタッフ間の夜勤回数の差を最小化</td></tr>
+        <tr><td>推奨ペア</td><td>推奨ペアを同じ夜勤に組もうとする</td></tr>
+        <tr><td>業務担当均等化</td><td>LD・入浴・フロア・排泄が特定の人に集中しないよう月全体で均等化</td></tr>
+      </table>
+    </section>
+
+    <!-- 9. データ管理 -->
+    <section id="data">
+      <h2><span class="icon">💾</span>9. データのバックアップと復元</h2>
+      <p>データはブラウザに自動保存されますが、別の PC に移したいときや誤操作に備えてバックアップを取ることを推奨します。</p>
+
+      <h3>バックアップ（エクスポート）</h3>
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>サイドバーの「データ保存」を押す</strong>
+          <p><code>シフトデータ_YYYYMMDD.json</code> というファイルがダウンロードされます。</p>
+        </div>
+      </div>
+
+      <h3>復元（インポート）</h3>
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>サイドバーの「データ読込」を押す</strong>
+          <p>ファイル選択ダイアログが表示されます。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong>バックアップした .json ファイルを選択する</strong>
+          <p>成功するとすべてのデータが復元されます。</p>
+        </div>
+      </div>
+
+      <div class="callout danger">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          <strong>インポートすると現在のデータはすべて上書きされます</strong>
+          インポート前に現在のデータをエクスポートしておくことをお勧めします。
+        </div>
+      </div>
+    </section>
+
+    <!-- 10. FAQ -->
+    <section id="faq">
+      <h2><span class="icon">❓</span>10. よくある質問（FAQ）</h2>
+
+      <div class="card">
+        <div class="card-title">Q. 自動生成しても必要人数が揃わない日があります</div>
+        <p>スタッフが少ない、または連勤・公休などの制約が重なった場合に発生します。対処法：</p>
+        <ul style="padding-left:20px; font-size:13.5px; color:var(--text-muted);">
+          <li>スタッフ設定で「担当できるシフト」の対象を増やす</li>
+          <li>「最大連続出勤日数」を増やす</li>
+          <li>手入力で補完する</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Q. 夜勤が月末に集中してしまいます</div>
+        <p>夜勤専従スタッフの「月最低夜勤回数（nightShiftMin）」を設定することで、クールダウン機能が働き月全体に均等分散されます。スタッフ設定で「夜勤専従」をONにして回数を入れてください。</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Q. 前月のシフトデータを引き継ぎたい</div>
+        <p>自動生成は前の月のシフトデータを自動的に参照しています。前月のデータが入力済みであれば、連続出勤日数・夜勤→明けの引き継ぎが自動で行われます。特別な操作は不要です。</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Q. 「明け」が自動で入らない</div>
+        <p>夜勤シフトの次の日に「明け」は自動挿入されます。手動で夜勤を入力した場合も同様です。もし入らない場合は、「明け」シフトが設定（ShiftType）に存在するか確認してください。</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Q. 業務（LD・入浴など）が特定の人に偏ります</div>
+        <p>自動生成の Phase 6 で月間担当回数を均等化するロジックが働きます。偏りが続く場合は、スタッフ設定の「担当できる業務」で対応可能な人数を増やすことで解消されやすくなります。</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Q. ブラウザを変えたらデータが消えました</div>
+        <p>データはブラウザごとに保存されているため、別のブラウザでは表示されません。定期的に「データ保存（エクスポート）」で JSON ファイルを取得し、別のブラウザで「データ読込」してください。</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Q. Excel 出力でセルの文字化けが発生します</div>
+        <p>Excel を開く際に「文字コード：UTF-8」を指定してください。あるいは Excel を直接開かずに、一度 Google スプレッドシートにインポートする方法も有効です。</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:60px; padding-top:24px; border-top:1px solid var(--border); text-align:center; font-size:12px; color:var(--text-muted);">
+      シフト自動作成アプリ 操作マニュアル &nbsp;|&nbsp; バージョン 1.3 &nbsp;|&nbsp; 最終更新: 2026-02-25
+    </footer>
+
+  </main>
+</div>
+
+<!-- アクティブ目次のハイライト -->
+<script>
+  const links = document.querySelectorAll('.sidebar .nav-link');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.style.fontWeight = '');
+        const active = document.querySelector(`.sidebar a[href="#${e.target.id}"]`);
+        if (active) active.style.fontWeight = '700';
+      }
+    });
+  }, { threshold: 0.4 });
+  document.querySelectorAll('section[id]').forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
