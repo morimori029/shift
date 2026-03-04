@@ -37,20 +37,20 @@ const allDuties: DutyType[] = ['ld', 'bathing', 'floor', 'toilet'];
 const noDuties: DutyType[] = [];
 
 export const DEFAULT_STAFF: Staff[] = [
-  { id: uid(), name: '山田 太郎', floor: '1F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: allDuties, monthlyWorkDays: undefined, unavailableDow: [], memo: '' },
-  { id: uid(), name: '佐藤 花子', floor: '1F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: ['ld', 'floor', 'toilet'], monthlyWorkDays: undefined, unavailableDow: [], memo: '' },
-  { id: uid(), name: '鈴木 一郎', floor: '1F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: allDuties, monthlyWorkDays: undefined, unavailableDow: [], memo: '' },
-  { id: uid(), name: '田中 美咲', floor: '1F', role: 'パート', availableShiftTypes: ['day', 'late'], availableDuties: ['floor', 'toilet'], monthlyWorkDays: 12, unavailableDow: [0, 6], memo: '週3日勤務' },
-  { id: uid(), name: '高橋 健一', floor: '1F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: allDuties, monthlyWorkDays: undefined, unavailableDow: [], memo: '' },
-  { id: uid(), name: '渡辺 あかり', floor: '1F', role: 'パート', availableShiftTypes: ['day'], availableDuties: ['floor'], monthlyWorkDays: undefined, unavailableDow: [0, 6], memo: '土日不可' },
-  { id: uid(), name: '伊藤 大輔', floor: '1F', role: '派遣', availableShiftTypes: ['early', 'day', 'night'], availableDuties: ['bathing', 'floor', 'toilet'], monthlyWorkDays: undefined, unavailableDow: [], memo: '' },
-  { id: uid(), name: '小林 さくら', floor: '1F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: ['ld', 'floor', 'toilet'], monthlyWorkDays: undefined, unavailableDow: [], memo: '' },
-  { id: uid(), name: '中村 健太', floor: '2F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: allDuties, monthlyWorkDays: undefined, unavailableDow: [], memo: '' },
-  { id: uid(), name: '松本 由美', floor: '2F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: allDuties, monthlyWorkDays: undefined, unavailableDow: [], memo: '' },
-  { id: uid(), name: '加藤 翔太', floor: '2F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: allDuties, monthlyWorkDays: undefined, unavailableDow: [], memo: '' },
-  { id: uid(), name: '吉田 恵', floor: '2F', role: 'パート', availableShiftTypes: ['day', 'late'], availableDuties: ['floor', 'toilet'], monthlyWorkDays: 15, unavailableDow: [0], memo: '日曜不可' },
-  { id: uid(), name: '木村 浩二', floor: '2F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: ['bathing', 'floor', 'toilet'], monthlyWorkDays: undefined, unavailableDow: [], memo: '' },
-  { id: uid(), name: '林 真由美', floor: '2F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: ['ld', 'floor', 'toilet'], monthlyWorkDays: undefined, unavailableDow: [], memo: '' },
+  { id: uid(), name: '山田 太郎', floor: '1F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: allDuties, monthlyWorkDays: undefined, unavailableDow: [], tags: [], memo: '' },
+  { id: uid(), name: '佐藤 花子', floor: '1F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: ['ld', 'floor', 'toilet'], monthlyWorkDays: undefined, unavailableDow: [], tags: [], memo: '' },
+  { id: uid(), name: '鈴木 一郎', floor: '1F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: allDuties, monthlyWorkDays: undefined, unavailableDow: [], tags: [], memo: '' },
+  { id: uid(), name: '田中 美咲', floor: '1F', role: 'パート', availableShiftTypes: ['day', 'late'], availableDuties: ['floor', 'toilet'], monthlyWorkDays: 12, unavailableDow: [0, 6], tags: [], memo: '週3日勤務' },
+  { id: uid(), name: '高橋 健一', floor: '1F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: allDuties, monthlyWorkDays: undefined, unavailableDow: [], tags: [], memo: '' },
+  { id: uid(), name: '渡辺 あかり', floor: '1F', role: 'パート', availableShiftTypes: ['day'], availableDuties: ['floor'], monthlyWorkDays: undefined, unavailableDow: [0, 6], tags: [], memo: '土日不可' },
+  { id: uid(), name: '伊藤 大輔', floor: '1F', role: '派遣', availableShiftTypes: ['early', 'day', 'night'], availableDuties: ['bathing', 'floor', 'toilet'], monthlyWorkDays: undefined, unavailableDow: [], tags: [], memo: '' },
+  { id: uid(), name: '小林 さくら', floor: '1F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: ['ld', 'floor', 'toilet'], monthlyWorkDays: undefined, unavailableDow: [], tags: [], memo: '' },
+  { id: uid(), name: '中村 健太', floor: '2F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: allDuties, monthlyWorkDays: undefined, unavailableDow: [], tags: [], memo: '' },
+  { id: uid(), name: '松本 由美', floor: '2F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: allDuties, monthlyWorkDays: undefined, unavailableDow: [], tags: [], memo: '' },
+  { id: uid(), name: '加藤 翔太', floor: '2F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: allDuties, monthlyWorkDays: undefined, unavailableDow: [], tags: [], memo: '' },
+  { id: uid(), name: '吉田 恵', floor: '2F', role: 'パート', availableShiftTypes: ['day', 'late'], availableDuties: ['floor', 'toilet'], monthlyWorkDays: 15, unavailableDow: [0], tags: [], memo: '日曜不可' },
+  { id: uid(), name: '木村 浩二', floor: '2F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: ['bathing', 'floor', 'toilet'], monthlyWorkDays: undefined, unavailableDow: [], tags: [], memo: '' },
+  { id: uid(), name: '林 真由美', floor: '2F', role: '正社員', availableShiftTypes: ['early', 'day', 'late', 'night'], availableDuties: ['ld', 'floor', 'toilet'], monthlyWorkDays: undefined, unavailableDow: [], tags: [], memo: '' },
 ];
 
 /** 7日間（日〜土）すべて同じ数字を入れた配列を作る便利関数 */

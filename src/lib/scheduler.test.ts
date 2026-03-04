@@ -37,6 +37,7 @@ function makeStaff(id: string, overrides: Partial<Staff> = {}): Staff {
         availableShiftTypes: ['early', 'day', 'late', 'night'],
         availableDuties: ['floor', 'toilet'],
         unavailableDow: [],
+        tags: [],
         memo: '',
         ...overrides,
     };

@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../components/Toast';
-import type { Staff, RoleType, DutyType } from '../types';
+import type { Staff, StaffTag, RoleType, DutyType } from '../types';
 import { DUTY_LABELS, ALL_DUTIES } from '../types';
 import { uid } from '../lib/defaults';
 
@@ -36,6 +36,7 @@ export default function StaffPage() {
   const toast = useToast();
   const [editing, setEditing] = useState<Staff | null>(null);
   const [isNew, setIsNew] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
   // #4: DnD 並び替え用の state
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const dragSrcId = useState<string | null>(null);
@@ -49,13 +50,39 @@ export default function StaffPage() {
       id: uid(), name: '', floor: state.currentFloor, role: '正社員',
       availableShiftTypes: shiftTypes.map(s => s.id),
       availableDuties: [...ALL_DUTIES],
-      monthlyWorkDays: undefined, unavailableDow: [], memo: '',
+      monthlyWorkDays: undefined, unavailableDow: [], tags: [], memo: '',
     });
   };
 
   const openEdit = (s: Staff) => {
     setIsNew(false);
     setEditing({ ...s });
+  };
+
+  // タグマスター: 新規タグを追加
+  const addTagMaster = () => {
+    const name = newTagName.trim();
+    if (!name) return;
+    if (state.staffTags.some(t => t.name === name)) { setNewTagName(''); return; }
+    const newTag: StaffTag = { id: uid(), name };
+    dispatch({ type: 'SET_STAFF_TAGS', staffTags: [...state.staffTags, newTag] });
+    setNewTagName('');
+  };
+
+  // タグマスター: タグを削除（スタッフへの紐づけも一括削除）
+  const removeTagMaster = (tagId: string) => {
+    dispatch({ type: 'SET_STAFF_TAGS', staffTags: state.staffTags.filter(t => t.id !== tagId) });
+    dispatch({
+      type: 'SET_STAFF_LIST',
+      staffList: state.staffList.map(s => ({ ...s, tags: s.tags.filter(id => id !== tagId) })),
+    });
+  };
+
+  // スタッフ編集モーダル: タグのトグル
+  const toggleTag = (tagId: string) => {
+    if (!editing) return;
+    const has = editing.tags.includes(tagId);
+    setEditing({ ...editing, tags: has ? editing.tags.filter(id => id !== tagId) : [...editing.tags, tagId] });
   };
 
   const save = () => {
@@ -161,6 +188,29 @@ export default function StaffPage() {
 
   return (
     <div>
+      {/* タグマスター管理セクション */}
+      <div className="bg-white rounded-xl shadow-sm px-4 py-3 mb-4">
+        <p className="text-xs font-semibold text-slate-500 mb-2">タグ管理</p>
+        <div className="flex flex-wrap gap-1.5 items-center">
+          {state.staffTags.map(tag => (
+            <span key={tag.id} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-violet-100 text-violet-700">
+              {tag.name}
+              <button onClick={() => removeTagMaster(tag.id)} className="text-violet-400 hover:text-red-500 leading-none">×</button>
+            </span>
+          ))}
+          <div className="flex gap-1.5 items-center">
+            <input
+              className="px-2.5 py-1 border border-slate-200 rounded-lg text-xs w-28"
+              placeholder="タグ名"
+              value={newTagName}
+              onChange={e => setNewTagName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTagMaster(); } }}
+            />
+            <button onClick={addTagMaster} className="px-2.5 py-1 text-xs bg-slate-100 rounded-lg hover:bg-slate-200">追加</button>
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-between items-center mb-4">
         <p className="text-sm text-slate-500">{state.currentFloor}に配属されているスタッフ一覧</p>
         <button onClick={openNew} className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600">
@@ -195,7 +245,19 @@ export default function StaffPage() {
                 onDrop={e => handleDrop(e, s.id)}
               >
                 <td className="px-3 py-2.5 text-slate-400">{i + 1}</td>
-                <td className="px-3 py-2.5 font-medium">{s.name}</td>
+                <td className="px-3 py-2.5 font-medium">
+                  <div>{s.name}</div>
+                  {(s.tags ?? []).length > 0 && (
+                    <div className="flex gap-1 flex-wrap mt-0.5">
+                      {(s.tags ?? []).map(tagId => {
+                        const tag = state.staffTags.find(t => t.id === tagId);
+                        return tag ? (
+                          <span key={tagId} className="px-1.5 rounded-full text-[10px] bg-violet-100 text-violet-600">{tag.name}</span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
+                </td>
                 <td className="px-3 py-2.5">
                   <div className="flex items-center gap-1.5">
                     <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${ROLE_COLORS[s.role]}`}>{s.role}</span>
@@ -382,6 +444,26 @@ export default function StaffPage() {
                 </button>
                 <span className="text-xs text-slate-500">シフト表で I（短時間）として表示</span>
               </div>
+              {state.staffTags.length > 0 && (
+                <div className="flex items-start gap-3">
+                  <label className="text-sm font-semibold text-slate-600 w-28 shrink-0 pt-1">タグ</label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {state.staffTags.map(tag => (
+                      <button
+                        key={tag.id}
+                        onClick={() => toggleTag(tag.id)}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold border-2 transition-colors ${
+                          editing.tags.includes(tag.id)
+                            ? 'border-violet-400 bg-violet-50 text-violet-700'
+                            : 'border-slate-200 bg-slate-50 text-slate-400'
+                        }`}
+                      >
+                        {tag.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex items-center gap-3">
                 <label className="text-sm font-semibold text-slate-600 w-28 shrink-0">メモ</label>
                 <input className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="備考" value={editing.memo} onChange={e => setEditing({ ...editing, memo: e.target.value })} />

@@ -15,7 +15,7 @@ import type { AppState } from '../types';
 
 /** エクスポートする対象のデータキー（これ以外は保存しない） */
 const EXPORT_KEYS = [
-  'staffList', 'shiftTypes', 'floorConfigs', 'pairSettings',
+  'staffList', 'shiftTypes', 'floorConfigs', 'staffTags', 'pairSettings',
   'assignments', 'staffComments', 'holidays',
 ] as const;
 
@@ -23,7 +23,7 @@ const EXPORT_KEYS = [
  * 必須ではなく省略可能なキー（旧バージョンのJSONには含まれていない場合がある）
  * これらが存在しない場合はデフォルト値で代替する
  */
-const OPTIONAL_KEYS = new Set(['holidays']);
+const OPTIONAL_KEYS = new Set(['holidays', 'staffTags']);
 
 /**
  * JSON ファイルに保存するデータの形式。
@@ -36,6 +36,7 @@ interface ExportData {
   staffList: AppState['staffList'];
   shiftTypes: AppState['shiftTypes'];
   floorConfigs: AppState['floorConfigs'];
+  staffTags?: AppState['staffTags'];
   pairSettings: AppState['pairSettings'];
   assignments: AppState['assignments'];
   staffComments: AppState['staffComments'];
@@ -57,6 +58,7 @@ export function exportAppData(state: AppState): void {
     staffList: state.staffList,
     shiftTypes: state.shiftTypes,
     floorConfigs: state.floorConfigs,
+    staffTags: state.staffTags,
     pairSettings: state.pairSettings,
     assignments: state.assignments,
     staffComments: state.staffComments,
@@ -184,6 +186,7 @@ export function importAppData(file: File): Promise<Omit<AppState, 'currentFloor'
           staffList: data.staffList as AppState['staffList'],
           shiftTypes: data.shiftTypes as AppState['shiftTypes'],
           floorConfigs: data.floorConfigs as AppState['floorConfigs'],
+          staffTags: (Array.isArray(data.staffTags) ? data.staffTags : []) as AppState['staffTags'],
           pairSettings: data.pairSettings as AppState['pairSettings'],
           assignments: data.assignments as AppState['assignments'],
           staffComments: data.staffComments as AppState['staffComments'],

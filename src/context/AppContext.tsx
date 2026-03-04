@@ -9,7 +9,7 @@
  */
 
 import { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react';
-import type { AppState, Staff, ShiftType, FloorConfig, PairSetting, ShiftAssignment, StaffDayComment, Floor, DutyType } from '../types';
+import type { AppState, Staff, ShiftType, FloorConfig, PairSetting, ShiftAssignment, StaffDayComment, StaffTag, Floor, DutyType } from '../types';
 import { ALL_DUTIES } from '../types';
 import { DEFAULT_SHIFT_TYPES, DEFAULT_STAFF, DEFAULT_FLOOR_CONFIGS, DEFAULT_PAIR_SETTINGS } from '../lib/defaults';
 import { loadData, saveData } from '../lib/storage';
@@ -43,6 +43,9 @@ function migrateStaff(loaded: Staff[]): Staff[] {
     }
     if (!Array.isArray(migrated.unavailableDow)) {
       migrated.unavailableDow = [];
+    }
+    if (!Array.isArray((migrated as Staff & { tags?: string[] }).tags)) {
+      (migrated as Staff & { tags: string[] }).tags = [];
     }
     delete migrated.canLead;
     return migrated as Staff;
@@ -114,6 +117,7 @@ const initialState: AppState = {
   staffList: migrateStaff(loadData('staffList', DEFAULT_STAFF)),
   shiftTypes: migrateShiftTypes(loadData('shiftTypes', DEFAULT_SHIFT_TYPES)),
   floorConfigs: migrateFloorConfigs(loadData('floorConfigs', DEFAULT_FLOOR_CONFIGS)),
+  staffTags: loadData('staffTags', [] as StaffTag[]),
   pairSettings: loadData('pairSettings', DEFAULT_PAIR_SETTINGS),
   assignments: loadData('assignments', [] as ShiftAssignment[]),
   staffComments: loadData('staffComments', [] as StaffDayComment[]),
@@ -133,6 +137,7 @@ type Action =
   | { type: 'SET_STAFF_LIST'; staffList: Staff[] }
   | { type: 'SET_SHIFT_TYPES'; shiftTypes: ShiftType[] }
   | { type: 'SET_FLOOR_CONFIGS'; floorConfigs: FloorConfig[] }
+  | { type: 'SET_STAFF_TAGS'; staffTags: StaffTag[] }
   | { type: 'SET_PAIR_SETTINGS'; pairSettings: PairSetting[] }
   | { type: 'SET_ASSIGNMENTS'; assignments: ShiftAssignment[] }
   | { type: 'SET_STAFF_COMMENTS'; staffComments: StaffDayComment[] }
@@ -155,6 +160,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_STAFF_LIST': return { ...state, staffList: action.staffList };
     case 'SET_SHIFT_TYPES': return { ...state, shiftTypes: action.shiftTypes };
     case 'SET_FLOOR_CONFIGS': return { ...state, floorConfigs: action.floorConfigs };
+    case 'SET_STAFF_TAGS': return { ...state, staffTags: action.staffTags };
     case 'SET_PAIR_SETTINGS': return { ...state, pairSettings: action.pairSettings };
     case 'SET_ASSIGNMENTS': return { ...state, assignments: action.assignments };
     case 'SET_STAFF_COMMENTS': return { ...state, staffComments: action.staffComments };
@@ -215,6 +221,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { saveData('staffList', state.staffList); }, [state.staffList]);
   useEffect(() => { saveData('shiftTypes', state.shiftTypes); }, [state.shiftTypes]);
   useEffect(() => { saveData('floorConfigs', state.floorConfigs); }, [state.floorConfigs]);
+  useEffect(() => { saveData('staffTags', state.staffTags); }, [state.staffTags]);
   useEffect(() => { saveData('pairSettings', state.pairSettings); }, [state.pairSettings]);
   useEffect(() => { saveData('assignments', state.assignments); }, [state.assignments]);
   useEffect(() => { saveData('staffComments', state.staffComments); }, [state.staffComments]);

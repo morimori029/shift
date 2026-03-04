@@ -50,6 +50,7 @@ export interface Staff {
   nightShiftMax?: number;        // 月の夜勤最高回数（夜勤専従の場合）
   isShortTime?: boolean;         // 短時間勤務フラグ（シフト表で I と表示）
   unavailableDow: number[];      // 出勤できない曜日（0=日曜〜6=土曜）
+  tags: string[];                // 付与されたタグのIDリスト（StaffTag.id を参照）
   memo: string;                  // メモ（自由記述）
 }
 
@@ -69,6 +70,15 @@ export interface ShiftType {
   isNightShift: boolean; // 夜勤かどうか
   isAke: boolean;        // 明けかどうか（夜勤の翌日に自動挿入される）
   order: number;         // 表示順（小さい数が先頭）
+}
+
+/**
+ * スタッフに付けるタグ（グループラベル）のマスターデータ。
+ * 先にここでタグを作り、各スタッフに ID で紐づける。
+ */
+export interface StaffTag {
+  id: string;   // 一意ID
+  name: string; // タグ名（自由テキスト）
 }
 
 /**
@@ -130,6 +140,7 @@ export interface AppState {
   staffList: Staff[];               // スタッフの一覧
   shiftTypes: ShiftType[];          // シフト種別の一覧
   floorConfigs: FloorConfig[];      // フロアごとの設定
+  staffTags: StaffTag[];            // タグマスター一覧
   pairSettings: PairSetting[];      // ペア相性設定の一覧
   assignments: ShiftAssignment[];   // 全シフト割当データ
   staffComments: StaffDayComment[]; // スタッフへのコメント一覧
