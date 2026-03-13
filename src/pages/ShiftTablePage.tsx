@@ -81,6 +81,23 @@ export default function ShiftTablePage() {
   const nightType = state.shiftTypes.find(st => st.isNightShift);
   const akeType = state.shiftTypes.find(st => st.isAke);
 
+  // 前月末の夜勤→当月1日の明け引き継ぎを検出
+  const prevMonthCarryover = useMemo(() => {
+    if (!nightType || !akeType) return [];
+    const py = month === 1 ? year - 1 : year;
+    const pm = month === 1 ? 12 : month - 1;
+    const lastDay = new Date(py, pm, 0).getDate();
+    const prevLastDate = `${py}-${String(pm).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    const day1 = `${year}-${String(month).padStart(2, '0')}-01`;
+
+    return floorStaff.filter(s => {
+      const prevA = state.assignments.find(a => a.staffId === s.id && a.date === prevLastDate);
+      if (!prevA || prevA.shiftTypeId !== nightType.id) return false;
+      const day1A = floorAssignments.find(a => a.staffId === s.id && a.date === day1);
+      return !day1A; // 当月1日にまだシフトが入っていない
+    });
+  }, [floorStaff, state.assignments, floorAssignments, nightType, akeType, year, month]);
+
   const getNextDate = (d: string, withinMonth = true): string | null => {
     const dt = new Date(d);
     dt.setDate(dt.getDate() + 1);
@@ -155,32 +172,76 @@ export default function ShiftTablePage() {
   // #6/#11: 自動生成後の警告アイテムを生成する
   const buildGenerationWarnings = (result: typeof floorAssignments, daysInM: number): string[] => {
     const warns: string[] = [];
+    const holidaySet = new Set(state.holidays);
     const dow = (d: number) => new Date(year, month - 1, d).getDay();
+    // スケジューラーと同じ祝日ロジック
+    const getEffectiveDow = (dateStr: string, rawDow: number): number => {
+      if (!holidaySet.has(dateStr)) return rawDow;
+      return config.useHolidayRequirements ? -1 : 0;
+    };
+    const getEffectiveReq = (shiftId: string, effectiveDow: number): number => {
+      if (config.shiftRequirementsEnabled?.[shiftId] === false) return 0;
+      if (effectiveDow === -1) {
+        const holidayReq = config.holidayShiftRequirements?.[shiftId];
+        if (holidayReq !== undefined) return holidayReq;
+        const arr = config.shiftRequirements[shiftId];
+        return arr ? arr[0] ?? 0 : 0;
+      }
+      const arr = config.shiftRequirements[shiftId];
+      return arr ? arr[effectiveDow] ?? 0 : 0;
+    };
 
     for (let d = 1; d <= daysInM; d++) {
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const dayA = result.filter(a => a.date === dateStr);
+      const eDow = getEffectiveDow(dateStr, dow(d));
 
       // #11: 夜勤最低2人チェック
       if (nightType) {
         const nightCount = dayA.filter(a => a.shiftTypeId === nightType.id).length;
-        const nightReq = (config.shiftRequirements[nightType.id]?.[dow(d)] ?? 0);
+        const nightReq = getEffectiveReq(nightType.id, eDow);
         if (nightReq > 0 && nightCount < nightReq) {
           warns.push(`☔ ${month}/​${d}(日) 夜勤入りスタッフが${nightCount}人（必要${nightReq}人）`);
         }
       }
 
-      // #6: 各シフトの人数不足チェック
-      for (const [stId, reqArr] of Object.entries(config.shiftRequirements)) {
-        const req = (reqArr as number[])[dow(d)] ?? 0;
+      // #6: 各シフトの人数不足チェック + 原因診断
+      for (const [stId] of Object.entries(config.shiftRequirements)) {
+        const req = getEffectiveReq(stId, eDow);
         if (req <= 0) continue;
         const filled = dayA.filter(a => a.shiftTypeId === stId && a.duty !== 'onef').length;
         if (filled < req) {
           const stName = state.shiftTypes.find(st => st.id === stId)?.name ?? stId;
-          warns.push(`⚠️ ${month}/​${d}(日) ${stName}: 必要${req}人・願配${filled}人`);
+          const shortage = req - filled;
+          // 原因診断: なぜ埋まらなかったか
+          const reasons: string[] = [];
+          const capable = floorStaff.filter(s => s.availableShiftTypes.includes(stId));
+          if (capable.length < req) {
+            reasons.push(`対応可能スタッフが${capable.length}人のみ`);
+          }
+          const dayOff = dayA.filter(a => a.shiftTypeId === 'off' || a.shiftTypeId === 'paid').length;
+          const dayAke = dayA.filter(a => a.shiftTypeId === akeType?.id).length;
+          if (dayOff + dayAke > floorStaff.length * 0.5) {
+            reasons.push('休み/明けのスタッフが多い');
+          }
+          const reasonStr = reasons.length > 0 ? `（${reasons.join('・')}）` : '';
+          warns.push(`⚠️ ${month}/${d} ${stName}: ${shortage}人不足（配置${filled}/${req}人）${reasonStr}`);
         }
       }
     }
+
+    // サマリー: 総合診断
+    if (warns.length > 0) {
+      const totalReq = Object.entries(config.shiftRequirements).reduce((sum, [stId, arr]) => {
+        const dayReqs = (arr as number[]).reduce((s, v) => s + v, 0);
+        return config.shiftRequirementsEnabled?.[stId] !== false ? sum + dayReqs : sum;
+      }, 0);
+      const avgDailyReq = totalReq / 7;
+      if (floorStaff.length < avgDailyReq * 1.5) {
+        warns.unshift(`📊 スタッフ数(${floorStaff.length}人)が1日の平均必要人数(${avgDailyReq.toFixed(0)}人)に対して少なめです`);
+      }
+    }
+
     return warns;
   };
 
@@ -478,6 +539,29 @@ export default function ShiftTablePage() {
               >{st.shortName}</button>
             ))}
           </div>
+        </div>
+      )}
+
+      {prevMonthCarryover.length > 0 && (
+        <div className="mb-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between">
+          <p className="text-xs text-amber-700">
+            前月末に夜勤だったスタッフ（{prevMonthCarryover.map(s => s.name).join('、')}）の1日目は自動生成時に「明け」になります
+          </p>
+          <button
+            className="text-xs text-amber-600 hover:text-amber-800 font-semibold shrink-0 ml-3"
+            onClick={() => {
+              if (!akeType) return;
+              const day1 = `${year}-${String(month).padStart(2, '0')}-01`;
+              const newAssignments = [...state.assignments];
+              prevMonthCarryover.forEach(s => {
+                newAssignments.push({ staffId: s.id, date: day1, shiftTypeId: akeType.id, isLeader: false, isManual: true });
+              });
+              dispatch({ type: 'SET_ASSIGNMENTS', assignments: newAssignments });
+              toast.show('前月夜勤スタッフの明けを設定しました');
+            }}
+          >
+            今すぐ明けを設定
+          </button>
         </div>
       )}
 

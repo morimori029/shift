@@ -86,24 +86,29 @@ export default function StaffPage() {
   };
 
   const save = () => {
-    if (!editing || !editing.name.trim()) {
+    let staffToSave = editing;
+    if (!staffToSave || !staffToSave.name.trim()) {
       toast.show('氏名を入力してください', 'error');
       return;
     }
-    if (editing.availableShiftTypes.length === 0) {
+    if (staffToSave.availableShiftTypes.length === 0) {
       toast.show('勤務可能種別を1つ以上選択してください', 'error');
       return;
     }
-    if (editing.monthlyWorkDays !== undefined && editing.monthlyWorkDays < 1) {
+    if (staffToSave.monthlyWorkDays !== undefined && staffToSave.monthlyWorkDays < 1) {
       toast.show('月の勤務上限は1以上で入力してください', 'error');
       return;
     }
+    if (staffToSave.isNightOnly && staffToSave.nightShiftMin && staffToSave.nightShiftMax && staffToSave.nightShiftMin > staffToSave.nightShiftMax) {
+      toast.show('夜勤回数の下限が上限を超えています。上限を下限に合わせます', 'info');
+      staffToSave = { ...staffToSave, nightShiftMax: staffToSave.nightShiftMin };
+    }
     const list = isNew
-      ? [...state.staffList, editing]
-      : state.staffList.map(s => s.id === editing.id ? editing : s);
+      ? [...state.staffList, staffToSave]
+      : state.staffList.map(s => s.id === staffToSave.id ? staffToSave : s);
     dispatch({ type: 'SET_STAFF_LIST', staffList: list });
     setEditing(null);
-    toast.show(isNew ? `${editing.name} を追加しました` : `${editing.name} を更新しました`);
+    toast.show(isNew ? `${staffToSave.name} を追加しました` : `${staffToSave.name} を更新しました`);
   };
 
   const remove = (id: string) => {

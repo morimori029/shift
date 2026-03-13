@@ -7,10 +7,10 @@ import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AppProvider>
-      <ToastProvider>
+    <ToastProvider>
+      <AppProvider>
         <App />
-      </ToastProvider>
-    </AppProvider>
+      </AppProvider>
+    </ToastProvider>
   </StrictMode>,
 );

@@ -8,11 +8,12 @@
  * ここでデータが更新されると、自動的に画面にも反映されます。
  */
 
-import { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useReducer, useEffect, useRef, useCallback, type ReactNode } from 'react';
+import { useToast } from '../components/Toast';
 import type { AppState, Staff, ShiftType, FloorConfig, PairSetting, ShiftAssignment, StaffDayComment, StaffTag, Floor, DutyType } from '../types';
 import { ALL_DUTIES } from '../types';
 import { DEFAULT_SHIFT_TYPES, DEFAULT_STAFF, DEFAULT_FLOOR_CONFIGS, DEFAULT_PAIR_SETTINGS } from '../lib/defaults';
-import { loadData, saveData } from '../lib/storage';
+import { loadData, saveData, saveAutoBackup, BACKUP_INTERVAL } from '../lib/storage';
 
 const now = new Date();
 
@@ -188,6 +189,14 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'DELETE_SHIFT_TYPE': {
       const sid = action.shiftTypeId;
+      // 削除後に勤務可能シフトが空になるスタッフがいる場合は削除を中止
+      const affectedStaff = state.staffList.filter(
+        s => s.availableShiftTypes.includes(sid) && s.availableShiftTypes.length === 1
+      );
+      if (affectedStaff.length > 0) {
+        console.warn(`シフト種別削除を中止: ${affectedStaff.map(s => s.name).join(', ')} の勤務可能種別が空になります`);
+        return state;
+      }
       return {
         ...state,
         shiftTypes: state.shiftTypes.filter(st => st.id !== sid),
@@ -207,8 +216,18 @@ function reducer(state: AppState, action: Action): AppState {
   }
 }
 
+/** Undo 対象外のアクション（画面切替はデータ変更ではないので戻さない） */
+const NON_UNDOABLE_ACTIONS = new Set(['SET_FLOOR', 'SET_MONTH']);
+
+interface AppContextValue {
+  state: AppState;
+  dispatch: React.Dispatch<Action>;
+  undo: () => void;
+  canUndo: boolean;
+}
+
 /** 実際にデータを配るための「管（パイプ）」のようなもの */
-const AppContext = createContext<{ state: AppState; dispatch: React.Dispatch<Action> } | null>(null);
+const AppContext = createContext<AppContextValue | null>(null);
 
 /**
  * アプリ全体をこのコンポーネントで囲むことで、
@@ -216,25 +235,78 @@ const AppContext = createContext<{ state: AppState; dispatch: React.Dispatch<Act
  */
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const toast = useToast();
+  const saveErrorShown = useRef(false);
+  const undoStack = useRef<AppState[]>([]);
+  const MAX_UNDO = 10;
+
+  /** dispatch をラップし、データ変更時のみ undo スタックに積む */
+  const wrappedDispatch = useCallback((action: Action) => {
+    if (!NON_UNDOABLE_ACTIONS.has(action.type)) {
+      undoStack.current = [...undoStack.current.slice(-(MAX_UNDO - 1)), state];
+    }
+    dispatch(action);
+  }, [state]);
+
+  const undo = useCallback(() => {
+    const prev = undoStack.current.pop();
+    if (!prev) return;
+    dispatch({ type: 'RESTORE_ALL', payload: prev });
+    // RESTORE_ALL で currentFloor/Year/Month は上書きされないが、
+    // undo 後は元の画面位置を保持したいのでそれで OK
+    toast.show('操作を元に戻しました', 'info');
+  }, [toast]);
+
+  const canUndo = undoStack.current.length > 0;
 
   // データが変わるたびにブラウザ（LocalStorage）に自動保存する
-  useEffect(() => { saveData('staffList', state.staffList); }, [state.staffList]);
-  useEffect(() => { saveData('shiftTypes', state.shiftTypes); }, [state.shiftTypes]);
-  useEffect(() => { saveData('floorConfigs', state.floorConfigs); }, [state.floorConfigs]);
-  useEffect(() => { saveData('staffTags', state.staffTags); }, [state.staffTags]);
-  useEffect(() => { saveData('pairSettings', state.pairSettings); }, [state.pairSettings]);
-  useEffect(() => { saveData('assignments', state.assignments); }, [state.assignments]);
-  useEffect(() => { saveData('staffComments', state.staffComments); }, [state.staffComments]);
-  useEffect(() => { saveData('holidays', state.holidays); }, [state.holidays]);
+  const safeSave = (key: string, data: unknown) => {
+    if (!saveData(key, data) && !saveErrorShown.current) {
+      saveErrorShown.current = true;
+      toast.show('ストレージの保存に失敗しました。空き容量を確認してください', 'error');
+      setTimeout(() => { saveErrorShown.current = false; }, 10000);
+    }
+  };
+  useEffect(() => { safeSave('staffList', state.staffList); }, [state.staffList]);
+  useEffect(() => { safeSave('shiftTypes', state.shiftTypes); }, [state.shiftTypes]);
+  useEffect(() => { safeSave('floorConfigs', state.floorConfigs); }, [state.floorConfigs]);
+  useEffect(() => { safeSave('staffTags', state.staffTags); }, [state.staffTags]);
+  useEffect(() => { safeSave('pairSettings', state.pairSettings); }, [state.pairSettings]);
+  useEffect(() => { safeSave('assignments', state.assignments); }, [state.assignments]);
+  useEffect(() => { safeSave('staffComments', state.staffComments); }, [state.staffComments]);
+  useEffect(() => { safeSave('holidays', state.holidays); }, [state.holidays]);
 
-  return <AppContext.Provider value={{ state, dispatch }}>{children}</AppContext.Provider>;
+  // 定期自動バックアップ（5分ごと）
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  useEffect(() => {
+    const id = setInterval(() => {
+      const s = stateRef.current;
+      saveAutoBackup({
+        _format: 'shift-app-backup',
+        _version: 1,
+        _exportedAt: new Date().toISOString(),
+        staffList: s.staffList,
+        shiftTypes: s.shiftTypes,
+        floorConfigs: s.floorConfigs,
+        staffTags: s.staffTags,
+        pairSettings: s.pairSettings,
+        assignments: s.assignments,
+        staffComments: s.staffComments,
+        holidays: s.holidays,
+      });
+    }, BACKUP_INTERVAL);
+    return () => clearInterval(id);
+  }, []);
+
+  return <AppContext.Provider value={{ state, dispatch: wrappedDispatch, undo, canUndo }}>{children}</AppContext.Provider>;
 }
 
 /**
  * 他のファイルからデータを使いたいときに呼ぶ便利な魔法のフック。
  * 使い方: const { state, dispatch } = useApp();
  */
-export function useApp() {
+export function useApp(): AppContextValue {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error('useApp must be inside AppProvider');
   return ctx;

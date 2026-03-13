@@ -11,7 +11,8 @@
  *   importAppData(file)  → ファイルを読み込んで AppState を返す
  */
 
-import type { AppState } from '../types';
+import type { AppState, Staff, DutyType } from '../types';
+import { ALL_DUTIES } from '../types';
 
 /** エクスポートする対象のデータキー（これ以外は保存しない） */
 const EXPORT_KEYS = [
@@ -140,6 +141,113 @@ function validateImportData(data: Record<string, unknown>): string | null {
 }
 
 /**
+ * クロスリファレンスの整合性をチェックする（警告レベル）。
+ * 不整合のあるデータを除去して返す。
+ */
+function sanitizeCrossReferences(
+  result: Omit<AppState, 'currentFloor' | 'currentYear' | 'currentMonth'>
+): { data: typeof result; warnings: string[] } {
+  const warnings: string[] = [];
+  const staffIds = new Set(result.staffList.map(s => s.id));
+  const shiftTypeIds = new Set(result.shiftTypes.map(st => st.id));
+  const specialShiftIds = new Set(['off', 'paid']);
+
+  // assignments: 存在しないスタッフ/シフト種別を除去
+  const validAssignments = result.assignments.filter(a => {
+    if (!staffIds.has(a.staffId)) {
+      warnings.push(`割当: 存在しないスタッフID "${a.staffId}" を除去`);
+      return false;
+    }
+    if (!specialShiftIds.has(a.shiftTypeId) && !shiftTypeIds.has(a.shiftTypeId)) {
+      warnings.push(`割当: 存在しないシフト種別 "${a.shiftTypeId}" を除去`);
+      return false;
+    }
+    return true;
+  });
+
+  // pairSettings: 存在しないスタッフを参照するペア設定を除去
+  const validPairs = result.pairSettings.filter(p => {
+    if (!staffIds.has(p.staffId1) || !staffIds.has(p.staffId2)) {
+      warnings.push(`ペア設定: 存在しないスタッフを参照するペアを除去`);
+      return false;
+    }
+    return true;
+  });
+
+  // staffComments: 存在しないスタッフのコメントを除去
+  const validComments = result.staffComments.filter(c => {
+    if (!staffIds.has(c.staffId)) return false;
+    return true;
+  });
+
+  return {
+    data: { ...result, assignments: validAssignments, pairSettings: validPairs, staffComments: validComments },
+    warnings,
+  };
+}
+
+/**
+ * インポートされたスタッフデータに不足フィールドを補完する（マイグレーション）。
+ */
+function migrateImportedStaff(staffList: AppState['staffList']): AppState['staffList'] {
+  return staffList.map(s => {
+    const migrated = { ...s } as Staff & { canLead?: boolean };
+    if (!Array.isArray(migrated.availableDuties)) {
+      const duties: DutyType[] = migrated.canLead ? ['ld', 'floor', 'toilet'] : ['floor', 'toilet'];
+      migrated.availableDuties = duties;
+    }
+    if (!Array.isArray(migrated.availableShiftTypes)) {
+      migrated.availableShiftTypes = [];
+    }
+    if (!Array.isArray(migrated.unavailableDow)) {
+      migrated.unavailableDow = [];
+    }
+    if (!Array.isArray((migrated as Staff & { tags?: string[] }).tags)) {
+      (migrated as Staff & { tags: string[] }).tags = [];
+    }
+    if (typeof migrated.memo !== 'string') {
+      (migrated as Staff).memo = '';
+    }
+    delete migrated.canLead;
+    return migrated as Staff;
+  });
+}
+
+/**
+ * インポートされたフロア設定に不足フィールドを補完する（マイグレーション）。
+ */
+function migrateImportedFloorConfigs(configs: AppState['floorConfigs']): AppState['floorConfigs'] {
+  return configs.map(fc => {
+    const reqs = { ...fc.shiftRequirements } as Record<string, number | number[]>;
+    for (const key of Object.keys(reqs)) {
+      const val = reqs[key];
+      if (typeof val === 'number') {
+        reqs[key] = [val, val, val, val, val, val, val];
+      }
+    }
+    const enabled = { ...(fc.shiftRequirementsEnabled ?? {}) } as Record<string, boolean>;
+    for (const key of Object.keys(reqs)) {
+      if (!(key in enabled)) enabled[key] = true;
+    }
+    const dutyReqs = { ...(fc.dutyRequirements ?? {}) } as Record<string, number | number[]>;
+    for (const d of ALL_DUTIES) {
+      if (!(d in dutyReqs)) {
+        dutyReqs[d] = [0, 0, 0, 0, 0, 0, 0];
+      } else if (typeof dutyReqs[d] === 'number') {
+        const v = dutyReqs[d] as number;
+        dutyReqs[d] = [v, v, v, v, v, v, v];
+      }
+    }
+    return {
+      ...fc,
+      shiftRequirements: reqs as Record<string, number[]>,
+      shiftRequirementsEnabled: enabled,
+      dutyRequirements: dutyReqs as Record<Exclude<DutyType, 'onef'>, number[]>,
+    };
+  });
+}
+
+/**
  * JSON ファイルを読み込んでアプリのデータに変換する。
  *
  * Promise を返す非同期関数。
@@ -150,7 +258,12 @@ function validateImportData(data: Record<string, unknown>): string | null {
  * - 必要なキーが全て含まれているか
  * - 各配列・オブジェクトの形状が正しいか
  */
-export function importAppData(file: File): Promise<Omit<AppState, 'currentFloor' | 'currentYear' | 'currentMonth'>> {
+type ImportResult = {
+  data: Omit<AppState, 'currentFloor' | 'currentYear' | 'currentMonth'>;
+  warnings: string[];
+};
+
+export function importAppData(file: File): Promise<ImportResult> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader(); // ブラウザ標準のファイル読み込み機能
 
@@ -181,17 +294,21 @@ export function importAppData(file: File): Promise<Omit<AppState, 'currentFloor'
           return;
         }
 
-        // 問題なければデータを返す
-        resolve({
-          staffList: data.staffList as AppState['staffList'],
+        // マイグレーション適用（旧バージョンの不足フィールドを補完）
+        const rawResult = {
+          staffList: migrateImportedStaff(data.staffList as AppState['staffList']),
           shiftTypes: data.shiftTypes as AppState['shiftTypes'],
-          floorConfigs: data.floorConfigs as AppState['floorConfigs'],
+          floorConfigs: migrateImportedFloorConfigs(data.floorConfigs as AppState['floorConfigs']),
           staffTags: (Array.isArray(data.staffTags) ? data.staffTags : []) as AppState['staffTags'],
           pairSettings: data.pairSettings as AppState['pairSettings'],
           assignments: data.assignments as AppState['assignments'],
           staffComments: data.staffComments as AppState['staffComments'],
           holidays: (Array.isArray(data.holidays) ? data.holidays : []) as string[],
-        });
+        };
+
+        // クロスリファレンス検証（不整合データを除去して警告を返す）
+        const { data: sanitized, warnings } = sanitizeCrossReferences(rawResult);
+        resolve({ data: sanitized, warnings });
       } catch {
         reject(new Error('ファイルの読み込みに失敗しました'));
       }
