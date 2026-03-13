@@ -280,7 +280,7 @@
   <aside class="sidebar">
     <div class="sidebar-header">
       <h1>📋 シフト自動作成<br>操作マニュアル</h1>
-      <p>v1.3 &nbsp;|&nbsp; 2026-02-25</p>
+      <p>v2.0 &nbsp;|&nbsp; 2026-03-14</p>
     </div>
     <nav>
       <div class="nav-section">はじめに</div>
@@ -307,6 +307,10 @@
       <a class="nav-link" href="#algo">配置の流れ（フェーズ）</a>
       <a class="nav-link" href="#constraints">ルールの一覧</a>
 
+      <div class="nav-section">便利な機能</div>
+      <a class="nav-link" href="#undo">元に戻す（Undo）</a>
+      <a class="nav-link" href="#autobackup">自動バックアップ</a>
+
       <div class="nav-section">データ管理</div>
       <a class="nav-link" href="#data">バックアップと復元</a>
 
@@ -321,7 +325,7 @@
     <!-- ヒーロー -->
     <div class="hero">
       <h1>🏥 シフト自動作成アプリ 操作マニュアル</h1>
-      <p>介護施設（1F・2F）のシフト表を自動で作成・管理するアプリの使い方を説明します。</p>
+      <p>介護施設（1F・2F・非常勤）のシフト表を自動で作成・管理するアプリの使い方を説明します。</p>
     </div>
 
     <!-- 目次 -->
@@ -336,6 +340,8 @@
         <li><a href="#shifttable">シフト表の操作</a></li>
         <li><a href="#shift-types">シフト種別と表示記号</a></li>
         <li><a href="#algo">自動生成のしくみ</a></li>
+        <li><a href="#undo">元に戻す（Undo）</a></li>
+        <li><a href="#autobackup">自動バックアップ</a></li>
         <li><a href="#data">データのバックアップと復元</a></li>
         <li><a href="#faq">よくある質問（FAQ）</a></li>
       </ol>
@@ -350,11 +356,13 @@
         <div class="card-title">主な機能</div>
         <table>
           <tr><th>機能</th><th>説明</th></tr>
-          <tr><td>📋 スタッフ管理</td><td>スタッフの登録・編集・削除。担当できるシフトや業務を個人ごとに設定</td></tr>
+          <tr><td>📋 スタッフ管理</td><td>スタッフの登録・編集・削除。担当できるシフトや業務を個人ごとに設定。タグ付けも可能</td></tr>
           <tr><td>⚙️ シフト設定</td><td>フロアごとに「何曜日に何人必要か」を設定</td></tr>
           <tr><td>🤝 相性設定</td><td>夜勤ペアの NG・推奨を設定</td></tr>
-          <tr><td>📅 シフト表</td><td>シフトの自動生成・手入力・Excel/PDF 出力</td></tr>
-          <tr><td>💾 データ管理</td><td>JSON でバックアップ・復元</td></tr>
+          <tr><td>📅 シフト表</td><td>シフトの自動生成・手入力・Excel（業務付き）/PDF 出力</td></tr>
+          <tr><td>↩️ 元に戻す</td><td>操作を最大10回まで取り消し（Ctrl+Z 対応）</td></tr>
+          <tr><td>🛡️ 自動バックアップ</td><td>5分ごとに自動保存。サイドバーからダウンロード可能</td></tr>
+          <tr><td>💾 データ管理</td><td>JSON でバックアップ・復元（インポート時の整合性チェック付き）</td></tr>
         </table>
       </div>
 
@@ -443,6 +451,7 @@
         <tr><td><strong>出勤できない曜日</strong></td><td>ボタンで選択。選んだ曜日は必ず休みになります</td></tr>
         <tr><td><strong>夜勤専従</strong></td><td>ON にすると日勤に配置されません。月の最低・最高夜勤回数も設定可能</td></tr>
         <tr><td><strong>短時間（I 表示）</strong></td><td>ON にするとシフト表で日勤が「I」（ティール色）表示されます</td></tr>
+        <tr><td><strong>タグ</strong></td><td>スタッフにグループラベルを付与できます。タグはタグマスターで事前に作成します</td></tr>
         <tr><td><strong>メモ</strong></td><td>自由記述。シフト生成には影響しません</td></tr>
       </table>
 
@@ -519,8 +528,16 @@
       <div class="callout info">
         <span class="callout-icon">💡</span>
         <div class="callout-body">
-          <strong>前月データを引き継ぐ</strong>
-          前月末が夜勤で終わったスタッフは、自動生成で1日目が「明け」に設定されます。また、前月末の連続出勤日数も引き継いで最大連勤ルールに反映されます。
+          <strong>前月データの引き継ぎ</strong>
+          前月末が夜勤で終わったスタッフがいる場合、シフト表上部に琥珀色のバナーで通知されます。「今すぐ明けを設定」ボタンを押すと、該当スタッフの1日目に「明け」を一括設定できます。自動生成でも自動的に引き継がれます。
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          <strong>自動生成の警告と診断</strong>
+          自動生成後に人数不足や夜勤不足があると黄色い警告パネルが表示されます。生成に失敗した場合は、原因（対応可能スタッフ数、休み比率など）の診断メッセージも表示されるので、設定の見直しに活用してください。
         </div>
       </div>
 
@@ -560,7 +577,7 @@
       <h3 id="export">Excel / PDF 出力</h3>
       <table>
         <tr><th>出力形式</th><th>内容</th></tr>
-        <tr><td><strong>Excel 出力</strong></td><td>スタッフ名・日付・シフト記号・統計（出勤/夜勤/公休）列を含む .xlsx ファイル</td></tr>
+        <tr><td><strong>Excel 出力</strong></td><td>各スタッフ2行構成（上段: シフト種別、下段: 業務名）で出力。統計列（出勤/夜勤/公休/L回数）付き。下部に業務配置の日別集計セクションも表示</td></tr>
         <tr><td><strong>PDF 出力</strong></td><td>A4 横向きの印刷用 PDF。ブラウザの印刷ダイアログが開きます</td></tr>
       </table>
     </section>
@@ -697,9 +714,67 @@
       </table>
     </section>
 
-    <!-- 9. データ管理 -->
+    <!-- 9. 元に戻す -->
+    <section id="undo">
+      <h2><span class="icon">↩️</span>9. 元に戻す（Undo）</h2>
+      <p>操作を間違えたときに、直前の状態に戻すことができます。最大10回まで遡れます。</p>
+
+      <h3>使い方</h3>
+      <table>
+        <tr><th>方法</th><th>操作</th></tr>
+        <tr><td><strong>ボタン</strong></td><td>ヘッダー右側の「元に戻す」ボタンをクリック（操作履歴があるときのみ表示）</td></tr>
+        <tr><td><strong>キーボード</strong></td><td><span class="key">Ctrl</span> + <span class="key">Z</span>（Mac: <span class="key">⌘</span> + <span class="key">Z</span>）</td></tr>
+      </table>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">
+          <strong>Undo の対象外</strong>
+          フロアの切り替えや月の切り替えはデータの変更ではないため、Undo の対象外です。スタッフの編集・シフトの変更・設定の更新などデータに関わる操作が対象です。
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          <strong>ブラウザを閉じると Undo 履歴はリセットされます</strong>
+          Undo 履歴はメモリ上に保持されるため、ページを再読み込みすると消えます。重要な変更の前にはデータ保存（エクスポート）をお勧めします。
+        </div>
+      </div>
+    </section>
+
+    <!-- 10. 自動バックアップ -->
+    <section id="autobackup">
+      <h2><span class="icon">🛡️</span>10. 自動バックアップ</h2>
+      <p>アプリは5分ごとにデータを自動バックアップしています。万が一のデータ消失に備えた安全機能です。</p>
+
+      <h3>バックアップのダウンロード</h3>
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>サイドバーの「自動バックアップ保存」を押す</strong>
+          <p>最新の自動バックアップが JSON ファイルとしてダウンロードされます。</p>
+        </div>
+      </div>
+
+      <p>サイドバー下部には最終バックアップ時刻が表示されています。</p>
+
+      <div class="callout tip">
+        <span class="callout-icon">✅</span>
+        <div class="callout-body">
+          <strong>自動バックアップと手動バックアップの違い</strong>
+          <ul style="padding-left:16px; margin:4px 0 0;">
+            <li><strong>自動バックアップ</strong>: 5分ごとにブラウザ内に自動保存。ダウンロードで取り出し可能</li>
+            <li><strong>手動バックアップ（データ保存）</strong>: ボタンを押したタイミングで JSON ファイルをダウンロード</li>
+          </ul>
+          どちらのファイルも「データ読込」から復元できます。
+        </div>
+      </div>
+    </section>
+
+    <!-- 11. データ管理 -->
     <section id="data">
-      <h2><span class="icon">💾</span>9. データのバックアップと復元</h2>
+      <h2><span class="icon">💾</span>11. データのバックアップと復元</h2>
       <p>データはブラウザに自動保存されますが、別の PC に移したいときや誤操作に備えてバックアップを取ることを推奨します。</p>
 
       <h3>バックアップ（エクスポート）</h3>
@@ -736,9 +811,9 @@
       </div>
     </section>
 
-    <!-- 10. FAQ -->
+    <!-- 12. FAQ -->
     <section id="faq">
-      <h2><span class="icon">❓</span>10. よくある質問（FAQ）</h2>
+      <h2><span class="icon">❓</span>12. よくある質問（FAQ）</h2>
 
       <div class="card">
         <div class="card-title">Q. 自動生成しても必要人数が揃わない日があります</div>
@@ -779,10 +854,30 @@
         <div class="card-title">Q. Excel 出力でセルの文字化けが発生します</div>
         <p>Excel を開く際に「文字コード：UTF-8」を指定してください。あるいは Excel を直接開かずに、一度 Google スプレッドシートにインポートする方法も有効です。</p>
       </div>
+
+      <div class="card">
+        <div class="card-title">Q. 操作を元に戻したい</div>
+        <p><span class="key">Ctrl</span> + <span class="key">Z</span> を押すか、ヘッダーの「元に戻す」ボタンで直前の操作を取り消せます。最大10回まで戻れます。ブラウザを閉じると履歴はリセットされます。</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Q. Excel に業務（LD・入浴など）が表示されるようになった</div>
+        <p>v2.0 からExcel出力が2行構成になりました。上段にシフト種別（日・早・夜など）、下段に業務名（LD・入浴・フロア・排泄・応援）が表示されます。シフト表下部には業務配置の集計も出力されます。</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Q. 「ストレージの保存に失敗しました」と表示される</div>
+        <p>ブラウザの LocalStorage の容量が不足しています。「シフト設定」画面の「古いデータの削除」で24ヶ月以上前のデータを削除するか、ブラウザの設定でストレージ容量を確認してください。</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Q. インポート時に「不整合を自動修正」と表示される</div>
+        <p>インポートしたデータの中に、既に削除されたスタッフやシフト種別への参照が含まれていた場合に表示されます。不整合データは自動的に除去されますので、そのままお使いいただけます。</p>
+      </div>
     </section>
 
     <footer style="margin-top:60px; padding-top:24px; border-top:1px solid var(--border); text-align:center; font-size:12px; color:var(--text-muted);">
-      シフト自動作成アプリ 操作マニュアル &nbsp;|&nbsp; バージョン 1.3 &nbsp;|&nbsp; 最終更新: 2026-02-25
+      シフト自動作成アプリ 操作マニュアル &nbsp;|&nbsp; バージョン 2.0 &nbsp;|&nbsp; 最終更新: 2026-03-14
     </footer>
 
   </main>

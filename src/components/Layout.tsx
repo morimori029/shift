@@ -141,7 +141,7 @@ export default function Layout({ currentPage, onPageChange, currentFloor, onFloo
             自動バックアップ保存
           </button>
           <p className="text-[10px] text-slate-600 text-center pt-1">
-            v1.2 {(() => { const t = getLastBackupTime(); return t ? `| 最終保存: ${new Date(t).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}` : ''; })()}
+            v2.0 {(() => { const t = getLastBackupTime(); return t ? `| 最終保存: ${new Date(t).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}` : ''; })()}
           </p>
         </div>
       </div>
