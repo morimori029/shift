@@ -1,0 +1,152 @@
+// シフト管理アプリ Phase 1 データモデル
+// 移行元: c:/app/shift/src/types/index.ts, src/context/AppContext.tsx
+// 設計判断の詳細は C:\Users\t0301\.claude\plans\imperative-petting-crayon.md を参照
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Staff {
+  id                   String   @id @default(cuid())
+  name                 String
+  floor                String // Floor: '1F' | '2F' | '非常勤'
+  role                 String // RoleType: '正社員' | 'パート' | '派遣'
+  order                Int // 表示順（現行の配列インデックス順を明示カラム化）
+  monthlyWorkDays      Int?
+  weeklyWorkDays       Int?
+  isNightOnly          Boolean  @default(false)
+  nightShiftMin        Int?
+  nightShiftMax        Int?
+  isShortTime          Boolean  @default(false)
+  excludeFromCount     Boolean  @default(false)
+  unavailableDow       Json // number[] (0=日〜6=土)
+  unavailableOnHoliday Boolean?
+  memo                 String   @default("")
+  highlightColor       String? // 'color1' | 'color2'
+  availableDuties      Json // DutyType[]
+
+  availableShiftTypes ShiftType[] @relation("StaffAvailableShiftTypes")
+  tags                StaffTag[]  @relation("StaffTags")
+  user                User?
+
+  pairsAsStaff1 PairSetting[]     @relation("PairStaff1")
+  pairsAsStaff2 PairSetting[]     @relation("PairStaff2")
+  assignments   ShiftAssignment[]
+  comments      StaffDayComment[]
+
+  @@index([floor])
+}
+
+model ShiftType {
+  id           String  @id // 'early','day','late','night','ake','training','short','paid','half_am','half_pm'
+  name         String
+  shortName    String
+  startTime    String
+  endTime      String
+  color        String
+  bgColor      String
+  isDayShift   Boolean
+  isNightShift Boolean
+  isAke        Boolean
+  order        Int
+
+  staffAvailable Staff[]           @relation("StaffAvailableShiftTypes")
+  assignments    ShiftAssignment[]
+}
+
+model StaffTag {
+  id   String @id @default(cuid())
+  name String
+
+  staff       Staff[]          @relation("StaffTags")
+  pairsAsTag1 TagPairSetting[] @relation("TagPair1")
+  pairsAsTag2 TagPairSetting[] @relation("TagPair2")
+}
+
+model PairSetting {
+  id       String @id @default(cuid())
+  staff1Id String
+  staff2Id String
+  staff1   Staff  @relation("PairStaff1", fields: [staff1Id], references: [id], onDelete: Cascade)
+  staff2   Staff  @relation("PairStaff2", fields: [staff2Id], references: [id], onDelete: Cascade)
+  type     String // 'ng' | 'preferred'
+  scope    String // 'night' | 'day' | 'all'
+  memo     String @default("")
+
+  @@index([staff1Id])
+  @@index([staff2Id])
+}
+
+model TagPairSetting {
+  id     String   @id @default(cuid())
+  tag1Id String
+  tag2Id String
+  tag1   StaffTag @relation("TagPair1", fields: [tag1Id], references: [id], onDelete: Cascade)
+  tag2   StaffTag @relation("TagPair2", fields: [tag2Id], references: [id], onDelete: Cascade)
+  type   String
+  scope  String
+  memo   String   @default("")
+
+  @@index([tag1Id])
+  @@index([tag2Id])
+}
+
+model ShiftAssignment {
+  id          String     @id @default(cuid())
+  staffId     String
+  staff       Staff      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  date        String // 'YYYY-MM-DD'
+  shiftTypeId String? // null = 現行の 'off' センチネル相当
+  shiftType   ShiftType? @relation(fields: [shiftTypeId], references: [id], onDelete: Cascade)
+  isLeader    Boolean    @default(false)
+  isManual    Boolean    @default(false)
+  duty        String? // DutyType
+
+  @@unique([staffId, date])
+  @@index([date])
+}
+
+model FloorConfig {
+  floor                    String  @id // '1F' | '2F' | '非常勤'（3行のシングルトン）
+  shiftRequirements        Json // Record<shiftTypeId, number[7]>
+  shiftRequirementsEnabled Json // Record<shiftTypeId, boolean>
+  holidayShiftRequirements Json?
+  useHolidayRequirements   Boolean @default(false)
+  dutyRequirements         Json // Record<DutyType(onef除く), number[7]>
+  holidayDutyRequirements  Json?
+  leaderCountPerDay        Int
+  maxConsecutiveDays       Int
+  monthlyOffDays           Int
+}
+
+model StaffDayComment {
+  id      String @id @default(cuid())
+  staffId String
+  staff   Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  date    String
+  comment String
+
+  @@unique([staffId, date])
+}
+
+model Holiday {
+  date String @id // 'YYYY-MM-DD'
+}
+
+// Phase 1では未配線（ログイン画面・セッションなし）。
+// 将来の認証導入時にスキーマ作り直しにならないための布石として先に用意。
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  displayName  String
+  staffId      String?  @unique
+  staff        Staff?   @relation(fields: [staffId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

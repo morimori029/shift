@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+body {
+  font-family: 'Segoe UI', 'Yu Gothic UI', 'Meiryo', sans-serif;
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(60px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in {
+  animation: slide-in 0.25s ease-out;
+}
