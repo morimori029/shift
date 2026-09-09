@@ -66,7 +66,9 @@ export default function StaffPageClient({ floor, initialStaff: floorStaff, initi
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const shiftTypes = allShiftTypes.filter(st => !st.isAke);
+  // 勤務可能種別は早番・日勤・遅番・夜勤のみ選択可能にする（研修・短時間・有給・午前休・午後休は対象外）
+  const SELECTABLE_SHIFT_IDS = new Set(['early', 'day', 'late', 'night']);
+  const shiftTypes = allShiftTypes.filter(st => SELECTABLE_SHIFT_IDS.has(st.id));
 
   const openNew = () => {
     setIsNew(true);

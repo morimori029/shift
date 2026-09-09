@@ -238,9 +238,11 @@ def solve(req: GenerateRequest) -> tuple[str, list[ShiftAssignment], float, str 
             objective_terms.append(shortfall * -1000)
 
     # 公休目標からのずれを抑える（多すぎても少なすぎてもペナルティ）。
-    # ±3日程度までは軽いペナルティ、それを超えると急激に重くする（区分線形）ことで、
-    # 「不足人数を埋めるために特定の1人だけ大きく公休が削られる」よりも
-    # 「軽微な不足を許容してでも公休を全員で分かち合う」方を優先させる。
+    # ±3日程度までは中程度のペナルティ、それを超えると急激に重くする（区分線形）ことで、
+    # 「不足人数を埋めるために特定の1人だけ大きく公休が削られる」ことを避ける。
+    # 近傍側の重み(-150)は「推奨ペアのボーナス(+5)」や「夜勤均等化(-10)」よりずっと重くし、
+    # わずかな他の目的関数上の得のために公休目標を安易に犠牲にしないようにしている
+    # （不足人数ペナルティ(-1000)よりは軽いので、本当にやむを得ない場合のみ譲る）。
     DEV_SOFT_LIMIT = 3
     for s in staff:
         target_off = _target_off_days(s, config, days_in_month)
@@ -251,7 +253,7 @@ def solve(req: GenerateRequest) -> tuple[str, list[ShiftAssignment], float, str 
         dev_near = model.NewIntVar(0, DEV_SOFT_LIMIT, f"offdevnear_{s.id}")
         dev_far = model.NewIntVar(0, days_in_month, f"offdevfar_{s.id}")
         model.Add(dev_near + dev_far == over + under)
-        objective_terms.append(dev_near * -20)
+        objective_terms.append(dev_near * -800)
         objective_terms.append(dev_far * -1500)
 
     # 推奨ペアは同じ夜勤に入るとボーナス
