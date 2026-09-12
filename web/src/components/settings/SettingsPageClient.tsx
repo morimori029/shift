@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/Toast';
 import { updateFloorConfig } from '@/server/actions/floorConfig';
-import { addHoliday, removeHoliday } from '@/server/actions/holidays';
+import { addHoliday, removeHoliday, generateHolidaysForYear } from '@/server/actions/holidays';
 import { countOldAssignments, purgeOldData } from '@/server/actions/dataManagement';
 import type { FloorConfig, ShiftType, Staff, DutyType, Floor } from '@/types';
 import { ALL_DUTIES, DUTY_LABELS } from '@/types';
@@ -41,6 +41,8 @@ export default function SettingsPageClient({ floor, initialConfig, initialHolida
   const [config, setConfig] = useState<FloorConfig>(initialConfig);
   const [holidays, setHolidays] = useState<string[]>(initialHolidays);
   const [inputDate, setInputDate] = useState('');
+  const [genYear, setGenYear] = useState(new Date().getFullYear());
+  const [generatingHolidays, setGeneratingHolidays] = useState(false);
 
   const shiftTypes = allShiftTypes.filter(st => !st.isAke && !EXCLUDED_FROM_REQUIREMENTS.has(st.id));
   const useHoliday = config.useHolidayRequirements ?? false;
@@ -111,6 +113,21 @@ export default function SettingsPageClient({ floor, initialConfig, initialHolida
   const handleRemoveHoliday = async (d: string) => {
     setHolidays(holidays.filter(h => h !== d));
     await removeHoliday(d);
+  };
+
+  const handleGenerateHolidays = async () => {
+    setGeneratingHolidays(true);
+    try {
+      const res = await generateHolidaysForYear(genYear);
+      if (res.added.length === 0) {
+        toast.show(`${genYear}年の祝日はすでに全て登録済みです`, 'info');
+      } else {
+        setHolidays([...holidays, ...res.added.map(h => h.date)].sort());
+        toast.show(`${genYear}年の祝日を${res.added.length}件追加しました（${res.added.map(h => h.name).join('・')}）`);
+      }
+    } finally {
+      setGeneratingHolidays(false);
+    }
   };
 
   const handlePurge = async () => {
@@ -238,6 +255,20 @@ export default function SettingsPageClient({ floor, initialConfig, initialHolida
               className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:border-blue-400 outline-none"
             />
             <button onClick={() => void handleAddHoliday()} disabled={!inputDate} className="px-3 py-1.5 bg-red-500 text-white text-sm rounded-lg disabled:opacity-40 hover:bg-red-600 transition-colors font-semibold">+ 追加</button>
+            <div className="w-px h-6 bg-slate-200 mx-1" />
+            <input
+              type="number" value={genYear}
+              onChange={e => setGenYear(Number(e.target.value))}
+              className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center focus:border-blue-400 outline-none"
+            />
+            <span className="text-xs text-slate-500">年の</span>
+            <button
+              onClick={() => void handleGenerateHolidays()}
+              disabled={generatingHolidays}
+              className="px-3 py-1.5 bg-indigo-500 text-white text-sm rounded-lg disabled:opacity-40 hover:bg-indigo-600 transition-colors font-semibold"
+            >
+              {generatingHolidays ? '生成中...' : '祝日を自動生成'}
+            </button>
           </div>
           {holidays.length === 0 ? (
             <p className="text-[11px] text-slate-400">祝日が登録されていません。</p>

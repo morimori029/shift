@@ -52,8 +52,11 @@ Copy-Item -Recurse public .next\standalone\public
 
 ```powershell
 cd web/scripts
-./install-service.ps1 -DeployDir "C:\ShiftApp\web\.next\standalone" -DataDir "C:\ShiftAppData"
+./install-service.ps1 -DeployDir "C:\ShiftApp\web\.next\standalone" -DataDir "C:\ShiftAppData" -AdminPassword "実際に使うパスワード"
 ```
+
+`-AdminPassword` は必須。`/dashboard`（当日ダッシュボード）以外の全ページで、この
+パスワードでのログインが必要になる（個人アカウントではなく共通パスワード1つ）。
 
 これで:
 - Node.jsサーバーが `SERVICE_AUTO_START`（サーバー起動時に自動起動）

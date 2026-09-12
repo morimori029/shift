@@ -28,15 +28,20 @@
   CP-SATサイドカーのURL（既定: http://127.0.0.1:8001、先にサイドカー側のサービスを
   インストールしておくか、後で this app を再起動すればつながる）
 
+.PARAMETER AdminPassword
+  全ページ共通のログインパスワード（必須。/dashboard は誰でも見られる公開ページ、
+  それ以外の全画面はこのパスワードでのログインが必要）
+
 .PARAMETER NssmPath
   nssm.exe のフルパス（PATHが通っていれば省略可、既定値 "nssm"）
 
 .EXAMPLE
-  ./install-service.ps1 -DeployDir "C:\ShiftApp\web" -DataDir "C:\ShiftAppData"
+  ./install-service.ps1 -DeployDir "C:\ShiftApp\web" -DataDir "C:\ShiftAppData" -AdminPassword "実際のパスワード"
 #>
 param(
   [Parameter(Mandatory = $true)][string]$DeployDir,
   [Parameter(Mandatory = $true)][string]$DataDir,
+  [Parameter(Mandatory = $true)][string]$AdminPassword,
   [int]$Port = 3000,
   [string]$SidecarUrl = "http://127.0.0.1:8001",
   [string]$NssmPath = "nssm",
@@ -67,7 +72,8 @@ Write-Host "サービス '$ServiceName' を登録します..."
   "PORT=$Port" `
   "HOSTNAME=0.0.0.0" `
   "DATABASE_URL=$databaseUrl" `
-  "SIDECAR_URL=$SidecarUrl"
+  "SIDECAR_URL=$SidecarUrl" `
+  "ADMIN_PASSWORD=$AdminPassword"
 & $NssmPath set $ServiceName Start SERVICE_AUTO_START
 & $NssmPath set $ServiceName AppExit Default Restart
 & $NssmPath set $ServiceName AppStdout (Join-Path $DataDir "web-service.log")

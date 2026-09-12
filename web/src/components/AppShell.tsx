@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Floor } from '@/types';
 import { useToast } from '@/components/Toast';
 import { getBackupStatus, runBackupNow } from '@/server/actions/backupStatus';
+import { logout } from '@/server/auth';
 
 const NAV_ITEMS = [
   { href: '/staff', label: 'スタッフ管理', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' },
@@ -34,6 +35,7 @@ const FLOOR_TAB_COLOR: Record<Floor, string> = {
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const toast = useToast();
   const currentFloor = (searchParams.get('floor') as Floor | null) ?? '1F';
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
@@ -58,6 +60,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
     } finally {
       setBackingUp(false);
     }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+    router.refresh();
   };
 
   return (
@@ -108,6 +116,26 @@ export default function AppShell({ children }: { children: ReactNode }) {
             </svg>
             バックアップをダウンロード
           </a>
+          <a
+            href="/dashboard"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 rounded-lg hover:bg-white/10 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3" />
+            </svg>
+            当日ダッシュボード（公開）
+          </a>
+          <button
+            onClick={() => void handleLogout()}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 rounded-lg hover:bg-white/10 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+            </svg>
+            ログアウト
+          </button>
           <p className="text-[10px] text-slate-600 text-center pt-1">
             v2.0（Next.js版）
             {lastBackupAt && ` | 最終: ${new Date(lastBackupAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`}

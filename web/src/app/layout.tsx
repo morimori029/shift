@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import AppShell from "@/components/AppShell";
 import { ToastProvider } from "@/components/Toast";
 import "./globals.css";
 
@@ -13,11 +11,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ja" className="h-full">
       <body className="h-full">
-        <ToastProvider>
-          <Suspense>
-            <AppShell>{children}</AppShell>
-          </Suspense>
-        </ToastProvider>
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );
