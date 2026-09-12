@@ -7,11 +7,17 @@
  */
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { resolveDbPath } from './dbPath';
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- better-sqlite3 はCJS、Prismaのアダプタ経由で既にインストール済みのものをそのまま使う
 const Database = require('better-sqlite3');
 
-const DB_PATH = path.resolve(process.cwd(), 'dev.db');
-const BACKUP_DIR = path.resolve(process.cwd(), 'backups');
+const DB_PATH = resolveDbPath();
+// バックアップ先はDBファイルと同じ場所を既定にする（DATABASE_URLがデータ専用ディレクトリを
+// 指していれば、コードを再配置してもバックアップはデータと一緒に残る）。
+// BACKUP_DIR環境変数で明示的に上書きも可能。
+const BACKUP_DIR = process.env.BACKUP_DIR
+  ? path.resolve(process.env.BACKUP_DIR)
+  : path.join(path.dirname(DB_PATH), 'backups');
 const MAX_BACKUPS = 30;
 
 function timestamp(): string {
