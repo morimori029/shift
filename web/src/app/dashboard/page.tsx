@@ -53,8 +53,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               {year}年{month}月{day}日（{DOW_LABELS[dow]}）{isHoliday ? ' 祝' : ''}
             </span>
             <Link href={navHref(nextDate)} className="text-blue-500 hover:text-blue-700 text-xl px-2">&rarr;</Link>
-            {date !== today && (
+            {date !== today ? (
               <Link href={navHref(today)} className="ml-2 text-xs font-semibold text-white bg-slate-500 hover:bg-slate-600 rounded-lg px-3 py-1.5">今日</Link>
+            ) : (
+              <span className="ml-2 text-xs font-semibold text-slate-300 bg-slate-100 rounded-lg px-3 py-1.5">今日</span>
             )}
           </div>
         </div>
