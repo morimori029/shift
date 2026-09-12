@@ -5,11 +5,13 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useToast } from '@/components/Toast';
 import { autoFillShift, regenerateShift, applyPattern, clearAssignments, setCarryoverAke, type SchedulePattern, type ShiftTableData } from '@/server/actions/schedule';
 import { setAssignment, toggleLock, setAssignmentDuty } from '@/server/actions/assignments';
+import { setComment } from '@/server/actions/comments';
 import type { Floor, DutyType } from '@/types';
 import { ALL_DUTIES, DUTY_LABELS } from '@/types';
 import { DENSITY_STYLE, DUTY_COLORS, DOW_LABELS, dateStr, type Density } from './constants';
 import CoverageSummary from './CoverageSummary';
 import FloorMiniTable from './FloorMiniTable';
+import { exportShiftToPdf } from '@/lib/pdfExport';
 
 interface Props {
   floor: Floor;
@@ -25,7 +27,7 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
   const searchParams = useSearchParams();
   const toast = useToast();
 
-  const { staff, shiftTypes, config, holidays, daysInMonth, prevMonthCarryoverStaffIds } = data;
+  const { staff, shiftTypes, config, holidays, comments, daysInMonth, prevMonthCarryoverStaffIds } = data;
 
   const [generating, setGenerating] = useState(false);
   const [patterns, setPatterns] = useState<SchedulePattern[]>([]);
@@ -37,6 +39,7 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
   const [compareMode, setCompareMode] = useState(false);
   const [expandedFloors, setExpandedFloors] = useState<Set<Floor>>(new Set());
   const [activeCell, setActiveCell] = useState<{ staffId: string; date: string; x: number; y: number } | null>(null);
+  const [commentDraft, setCommentDraft] = useState('');
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const assignments = patterns.length > 0 ? patterns[currentPatternIdx].assignments : data.assignments;
@@ -91,6 +94,7 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
   }, [year, month, activeCell, isPreview]);
 
   const findAssignment = (staffId: string, date: string) => assignments.find(a => a.staffId === staffId && a.date === date);
+  const findComment = (staffId: string, date: string) => comments.find(c => c.staffId === staffId && c.date === date)?.comment ?? '';
 
   const calcStats = (staffId: string) => {
     const sa = assignments.filter(a => a.staffId === staffId);
@@ -165,6 +169,13 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
 
   const handleSetDuty = async (staffId: string, date: string, duty: DutyType | null) => {
     await setAssignmentDuty(staffId, date, duty);
+    router.refresh();
+  };
+
+  const handleSaveComment = async (staffId: string, date: string) => {
+    await setComment(staffId, date, commentDraft);
+    setActiveCell(null);
+    toast.show(commentDraft.trim() ? 'コメントを保存しました' : 'コメントを削除しました');
     router.refresh();
   };
 
@@ -253,6 +264,12 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
             </>
           )}
           <a href={`/api/export/excel?floor=${floor}&year=${year}&month=${month}`} className="px-4 py-2 text-sm bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 font-semibold">Excel</a>
+          <button
+            onClick={() => exportShiftToPdf({ year, month, floor, staff, shiftTypes, assignments, config, comments })}
+            className="px-4 py-2 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-semibold"
+          >
+            PDF
+          </button>
         </div>
       </div>
 
@@ -405,6 +422,7 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
                     const dutyLabel = a?.duty ? DUTY_LABELS[a.duty] : null;
                     const dutyColor = a?.duty ? DUTY_COLORS[a.duty] : null;
                     const locked = a?.isManual === true && !isEmpty;
+                    const hasComment = findComment(s.id, date) !== '';
 
                     return (
                       <td key={d} className={`px-0.5 py-0.5 text-center border border-slate-200 ${bgCls} align-top`}>
@@ -412,6 +430,7 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
                           onClick={e => {
                             if (isPreview) return;
                             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                            setCommentDraft(findComment(s.id, date));
                             setActiveCell({ staffId: s.id, date, x: rect.left, y: rect.bottom + 2 });
                           }}
                           className={`relative ${D.cellW} ${D.padY} rounded-lg block mx-auto ${isEmpty ? 'border border-dashed border-slate-200' : ''}`}
@@ -432,6 +451,16 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
                               <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={locked ? '#fff' : '#cbd5e1'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                 <rect x="5" y="11" width="14" height="10" rx="2" />
                                 <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                              </svg>
+                            </span>
+                          )}
+                          {hasComment && (
+                            <span
+                              className="absolute -bottom-1 -left-1 w-3.5 h-3.5 rounded-full bg-amber-400 flex items-center justify-center"
+                              title="コメントあり"
+                            >
+                              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                               </svg>
                             </span>
                           )}
@@ -500,6 +529,20 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
               </div>
             );
           })()}
+          <div className="border-t border-slate-100 pt-2 mt-2" style={{ width: 220 }}>
+            <textarea
+              value={commentDraft}
+              onChange={e => setCommentDraft(e.target.value)}
+              placeholder="コメント（遅刻・早退・申し送り等）"
+              className="w-full h-14 px-2 py-1 text-xs border border-slate-200 rounded resize-none focus:border-blue-400 outline-none"
+            />
+            <button
+              onClick={() => void handleSaveComment(activeCell.staffId, activeCell.date)}
+              className="mt-1 w-full py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 rounded"
+            >
+              コメントを保存
+            </button>
+          </div>
         </div>
       )}
 

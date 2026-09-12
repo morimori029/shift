@@ -8,7 +8,8 @@ import { toAssignmentScalarData } from '@/server/mappers/assignment';
 import { buildGenerationWarnings } from '@/server/warnings';
 import { loadContext, monthKeyOf, prevMonthOf } from '@/server/scheduleContext';
 import { generateShiftCpSat } from './cpsat';
-import type { Floor, ShiftAssignment, Staff, ShiftType, FloorConfig } from '@/types';
+import { listComments } from './comments';
+import type { Floor, ShiftAssignment, Staff, ShiftType, FloorConfig, StaffDayComment } from '@/types';
 
 export interface ShiftTableData {
   staff: Staff[];
@@ -16,6 +17,7 @@ export interface ShiftTableData {
   config: FloorConfig;
   holidays: string[];
   assignments: ShiftAssignment[];
+  comments: StaffDayComment[];
   daysInMonth: number;
   prevMonthCarryoverStaffIds: string[];
 }
@@ -41,12 +43,15 @@ export async function getShiftTableData(floor: Floor, year: number, month: numbe
         .map(s => s.id)
     : [];
 
+  const comments = await listComments(floor, year, month);
+
   return {
     staff: ctx.staff,
     shiftTypes: ctx.shiftTypes,
     config: ctx.config,
     holidays: ctx.holidays,
     assignments: ctx.monthAssignments,
+    comments,
     daysInMonth: ctx.daysInMonth,
     prevMonthCarryoverStaffIds,
   };
