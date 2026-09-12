@@ -2,8 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Floor } from '@/types';
+import { useToast } from '@/components/Toast';
+import { getBackupStatus, runBackupNow } from '@/server/actions/backupStatus';
 
 const NAV_ITEMS = [
   { href: '/staff', label: 'スタッフ管理', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' },
@@ -19,7 +22,6 @@ const PAGE_TITLES: Record<string, string> = {
   '/pairs': '相性設定',
   '/shift': 'シフト表',
   '/daily': '日別カレンダー',
-  '/import': 'データ取込',
 };
 
 const FLOORS: Floor[] = ['1F', '2F', '非常勤'];
@@ -32,7 +34,10 @@ const FLOOR_TAB_COLOR: Record<Floor, string> = {
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const toast = useToast();
   const currentFloor = (searchParams.get('floor') as Floor | null) ?? '1F';
+  const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
+  const [backingUp, setBackingUp] = useState(false);
 
   const withFloor = (href: string, floor: Floor) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -40,7 +45,20 @@ export default function AppShell({ children }: { children: ReactNode }) {
     return `${href}?${params.toString()}`;
   };
 
-  const showFloorTabs = pathname !== '/import';
+  useEffect(() => {
+    getBackupStatus().then(res => setLastBackupAt(res.latest?.createdAt ?? null)).catch(() => {});
+  }, []);
+
+  const handleBackupNow = async () => {
+    setBackingUp(true);
+    try {
+      const result = await runBackupNow();
+      setLastBackupAt(result.createdAt);
+      toast.show('サーバーにバックアップを保存しました');
+    } finally {
+      setBackingUp(false);
+    }
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -71,16 +89,29 @@ export default function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="px-3 py-3 border-t border-white/10 space-y-1.5">
-          <Link
-            href="/import"
+          <button
+            onClick={() => void handleBackupNow()}
+            disabled={backingUp}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+            </svg>
+            {backingUp ? 'バックアップ中...' : '今すぐバックアップ'}
+          </button>
+          <a
+            href="/api/backup"
             className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 rounded-lg hover:bg-white/10 transition-colors"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
-            データ取込
-          </Link>
-          <p className="text-[10px] text-slate-600 text-center pt-1">Phase 1</p>
+            バックアップをダウンロード
+          </a>
+          <p className="text-[10px] text-slate-600 text-center pt-1">
+            v2.0（Next.js版）
+            {lastBackupAt && ` | 最終: ${new Date(lastBackupAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`}
+          </p>
         </div>
       </div>
 
@@ -89,24 +120,22 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <h2 className="text-lg font-bold">{PAGE_TITLES[pathname] ?? ''}</h2>
         </div>
 
-        {showFloorTabs && (
-          <div className="bg-white px-7 border-b border-slate-200 flex shrink-0">
-            {FLOORS.map(f => {
-              const isActive = currentFloor === f;
-              return (
-                <Link
-                  key={f}
-                  href={withFloor(pathname, f)}
-                  className={`px-6 py-2.5 text-sm font-semibold border-b-[2.5px] transition-colors ${
-                    isActive ? FLOOR_TAB_COLOR[f] : 'text-slate-500 border-transparent hover:text-slate-800'
-                  }`}
-                >
-                  {f}
-                </Link>
-              );
-            })}
-          </div>
-        )}
+        <div className="bg-white px-7 border-b border-slate-200 flex shrink-0">
+          {FLOORS.map(f => {
+            const isActive = currentFloor === f;
+            return (
+              <Link
+                key={f}
+                href={withFloor(pathname, f)}
+                className={`px-6 py-2.5 text-sm font-semibold border-b-[2.5px] transition-colors ${
+                  isActive ? FLOOR_TAB_COLOR[f] : 'text-slate-500 border-transparent hover:text-slate-800'
+                }`}
+              >
+                {f}
+              </Link>
+            );
+          })}
+        </div>
 
         <div className="flex-1 overflow-auto p-6">{children}</div>
       </div>

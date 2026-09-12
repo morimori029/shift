@@ -45,3 +45,6 @@ next-env.d.ts
 # prisma sqlite db (local dev data, not source)
 /dev.db
 /dev.db-journal
+
+# DBバックアップ（データそのものなのでリポジトリには含めない）
+/backups
