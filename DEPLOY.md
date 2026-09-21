@@ -28,7 +28,7 @@ Windows 10サーバー上**で実行する。
 配置先の `web/` ディレクトリで実行:
 
 ```powershell
-npm install
+npm install               # 完了時に postinstall で Prisma クライアント(src/generated/)が自動生成される
 npx prisma migrate deploy   # DBスキーマを作成（この時点で dev.db が生成される）
 npx tsx prisma/seed.ts      # 初期シフト種別・フロア設定を投入
 npm run build               # .next/standalone/ が生成される
