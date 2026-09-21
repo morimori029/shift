@@ -28,7 +28,7 @@ python -m venv .venv
 ```
 
 `127.0.0.1` のみでLISTENする（社内LANはもちろん、同一マシンの他プロセス以外からは
-到達できない）。本番運用時はNSSMでWindowsサービス化する想定（Next.js側と同様）。
+到達できない）。本番運用時はタスクスケジューラで常駐化する想定（`scripts/install-service.ps1`、詳細は `DEPLOY.md`）（Next.js側と同様）。
 
 Next.js側は環境変数 `SIDECAR_URL`（デフォルト `http://127.0.0.1:8001`）でこの
 サービスのURLを解決する（`web/.env` 参照）。サイドカーが未起動・タイムアウトの

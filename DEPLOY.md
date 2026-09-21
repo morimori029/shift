@@ -1,13 +1,13 @@
-# 社内サーバーへのデプロイ手順（Windows 10、NSSM）
+# 社内サーバーへのデプロイ手順（Windows 10、タスクスケジューラ）
 
 Next.js本体（`web/`）とCP-SATサイドカー（`sidecar/`）を、それぞれ独立した
-Windowsサービスとして常駐化する。この手順は開発機ではなく**実際に配置する
+Windows標準の「タスクスケジューラ」のタスクとして常駐化する（追加ソフト不要）。この手順は開発機ではなく**実際に配置する
 Windows 10サーバー上**で実行する。
 
 ## 0. 前提
 
 - サーバーがローカルネットワーク内のみで、インターネットには公開しない構成
-- Docker不使用（NSSMで直接プロセスを常駐化）
+- Docker不使用（タスクスケジューラで直接プロセスを常駐化。NSSM等の追加ソフトは不要）
 - コードとデータを別ディレクトリに分ける（コードを再配置してもデータは残る）
   - コード配置先の例: `C:\ShiftApp\web`, `C:\ShiftApp\sidecar`
   - データ保存先の例: `C:\ShiftAppData`（DBファイル・バックアップ）
@@ -16,8 +16,6 @@ Windows 10サーバー上**で実行する。
 
 1. **Node.js**（推奨: LTS版）をインストール
 2. **Python 3.11以降**をインストール（`pip`込み）
-3. **NSSM** を https://nssm.cc/download からダウンロードし、`nssm.exe` にPATHを通す
-   （または展開先のフルパスを各スクリプトの `-NssmPath` に指定する）
 
 ## 2. コードの配置
 
@@ -48,7 +46,9 @@ Copy-Item -Recurse public .next\standalone\public
 コミット履歴、`fee5264`〜`cd953b1` 付近）を一時的に復元して使うか、スタッフ登録
 画面から手入力する。
 
-### サービス登録
+### タスク登録
+
+**PowerShellを「管理者として実行」で開いて**実行する:
 
 ```powershell
 cd web/scripts
@@ -59,12 +59,13 @@ cd web/scripts
 パスワードでのログインが必要になる（個人アカウントではなく共通パスワード1つ）。
 
 これで:
-- Node.jsサーバーが `SERVICE_AUTO_START`（サーバー起動時に自動起動）
-- クラッシュ時に自動再起動（`AppExit Default Restart`）
+- Node.jsサーバーがタスク「ShiftWebApp」として、サーバー起動時（ログイン不要）に自動起動
+- クラッシュ時は起動用スクリプト（`C:\ShiftAppData\run-shift-web.cmd`）内のループで10秒後に自動再起動
 - ポート3000でLISTEN（`-Port`で変更可）、`HOSTNAME=0.0.0.0` でLAN内の他端末からもアクセス可能
-- ログは `C:\ShiftAppData\web-service.log` / `web-service-error.log`
+- ログは `C:\ShiftAppData\web-service.log` / `web-service-error.log`（10MB超で世代交代）
 
-として登録される。
+として登録される。`run-shift-web.cmd` には共通パスワードが書かれるため、
+管理者・SYSTEM以外は読めないアクセス権に自動設定される。
 
 **ファイアウォール**（スクリプト実行後、表示される案内の通り）:
 
@@ -81,7 +82,9 @@ python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
 ```
 
-### サービス登録
+### タスク登録
+
+**PowerShellを「管理者として実行」で開いて**実行する:
 
 ```powershell
 cd sidecar/scripts
@@ -108,7 +111,11 @@ cd sidecar/scripts
   このフォルダは同じサーバー内なので、本当に重要なら別ドライブ・NAS等への
   定期コピーも検討する（未実装、運用課題として残っている）。
 - **コード更新時**: 新しいコードを配置 → `npm install` → `npm run build` →
-  static/public再コピー → `nssm restart ShiftWebApp`。DBファイルは
+  static/public再コピー → `install-service.ps1` を再実行（古いプロセスを停止して
+  タスクを登録し直す）。DBファイルは
   データ保存先ディレクトリにあるため、コード更新の影響を受けない。
-- **サービスの状態確認**: `nssm status ShiftWebApp` / `nssm status ShiftCpSatSidecar`、
-  または「サービス」アプリ（services.msc）から確認・手動再起動も可能。
+- **状態確認・手動操作**: `Get-ScheduledTask ShiftWebApp, ShiftCpSatSidecar`、または
+  「タスクスケジューラ」アプリから確認・実行できる。**タスクを止めても子の `node.exe` /
+  `python.exe` は残る**ので、止めたいときは `uninstall-service.ps1`（タスク削除＋プロセス停止）を使う。
+- **アンインストール**: `web/scripts/uninstall-service.ps1 -DeployDir <配置先>` /
+  `sidecar/scripts/uninstall-service.ps1`（いずれも管理者権限）。
