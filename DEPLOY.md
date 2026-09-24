@@ -28,8 +28,12 @@ Windows 10サーバー上**で実行する。
 配置先の `web/` ディレクトリで実行:
 
 ```powershell
-npm install               # 完了時に postinstall で Prisma クライアント(src/generated/)が自動生成される
-npx prisma migrate deploy   # DBスキーマを作成（この時点で dev.db が生成される）
+# DBの作成先を先に指定する（サーバーには .env が無いため。migrate と seed は同じ値を使うこと）
+New-Item -ItemType Directory -Force C:\ShiftAppData | Out-Null
+$env:DATABASE_URL = "file:C:/ShiftAppData/dev.db"
+
+npm install                 # 完了時に postinstall で Prisma クライアント(src/generated/)が自動生成される
+npx prisma migrate deploy   # DBスキーマを作成（C:\ShiftAppData\dev.db が生成される）
 npx tsx prisma/seed.ts      # 初期シフト種別・フロア設定を投入
 npm run build               # .next/standalone/ が生成される
 
@@ -38,8 +42,10 @@ Copy-Item -Recurse .next\static .next\standalone\.next\static
 Copy-Item -Recurse public .next\standalone\public
 ```
 
-生成された `dev.db` を、データ保存先ディレクトリ（例: `C:\ShiftAppData\dev.db`）に
-移動しておく（`install-service.ps1` がこのパスを `DATABASE_URL` として使う）。
+DBは上記のとおり最初からデータ保存先（`C:\ShiftAppData\dev.db`）に作られる
+（`install-service.ps1` がこのパスを `DATABASE_URL` として使う）。開発機の `dev.db`
+（入力済みのスタッフ等）を持ち込む場合は、`migrate deploy` と `seed` を飛ばして
+このパスにコピーすればよい。
 
 **旧アプリからの実データ移行**: `/import`機能は削除済み。移行が必要な場合は
 `web/src/server/actions/schedule.ts` 等が参照していた旧ロジック（このリポジトリの
