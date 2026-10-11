@@ -24,10 +24,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const date = params.date && /^\d{4}-\d{2}-\d{2}$/.test(params.date) ? params.date : today;
   const [year, month, day] = date.split('-').map(Number);
 
-  const { staff, shiftTypes, assignments, holidays } = await getDailyCalendarData(year, month);
+  const { staff, shiftTypes, assignments, comments, holidays } = await getDailyCalendarData(year, month);
 
   const holidaySet = new Set(holidays);
   const staffMap = new Map(staff.map(s => [s.id, s]));
+  const findComment = (staffId: string) => comments.find(c => c.staffId === staffId && c.date === date)?.comment;
   const activeShiftTypes = [...shiftTypes].filter(st => !st.isAke).sort((a, b) => a.order - b.order);
 
   const dow = new Date(year, month - 1, day).getDay();
@@ -63,10 +64,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
         <div className="grid grid-cols-2 gap-5">
           {FLOORS.map(floor => {
-            const dayFloorAssigns = dayAssignments.filter(a => {
-              const s = staffMap.get(a.staffId);
-              return s?.floor === floor && a.shiftTypeId !== 'off' && a.shiftTypeId !== 'paid';
-            });
+            const dayFloorAssigns = dayAssignments.filter(a => a.floor === floor && a.shiftTypeId !== 'off' && a.shiftTypeId !== 'paid');
             const presentShiftTypes = activeShiftTypes.filter(st => dayFloorAssigns.some(a => a.shiftTypeId === st.id));
 
             return (
@@ -90,10 +88,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                             {assigns.map(a => {
                               const s = staffMap.get(a.staffId);
                               const dutyLabel = a.duty ? DUTY_LABELS[a.duty as DutyType] : '';
+                              const comment = findComment(a.staffId);
                               return (
-                                <div key={a.staffId} className="flex items-center gap-2 text-2xl">
-                                  <span className="font-semibold text-slate-800">{s?.name ?? '?'}</span>
-                                  {dutyLabel && <span className="text-slate-400 text-base">{dutyLabel}</span>}
+                                <div key={a.staffId}>
+                                  <div className="flex items-center gap-2 text-2xl">
+                                    <span className="font-semibold text-slate-800">{s?.name ?? '?'}</span>
+                                    {dutyLabel && <span className="text-slate-400 text-base">{dutyLabel}</span>}
+                                  </div>
+                                  {comment && (
+                                    <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 mt-0.5 inline-block">
+                                      📝 {comment}
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}

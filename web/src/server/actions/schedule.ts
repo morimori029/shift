@@ -4,9 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/server/db';
 import { generateShift } from '@/domain/scheduler';
 import { generateShiftSA, evaluateShift, type ShiftScore } from '@/domain/schedulerSA';
-import { toAssignmentScalarData } from '@/server/mappers/assignment';
+import { toAssignmentScalarData, toDomainAssignment } from '@/server/mappers/assignment';
 import { buildGenerationWarnings } from '@/server/warnings';
-import { loadContext, monthKeyOf, prevMonthOf } from '@/server/scheduleContext';
+import { loadContext, loadVisitingStaff, monthKeyOf, prevMonthOf } from '@/server/scheduleContext';
 import { generateShiftCpSat } from './cpsat';
 import { listComments } from './comments';
 import type { Floor, ShiftAssignment, Staff, ShiftType, FloorConfig, StaffDayComment } from '@/types';
@@ -17,6 +17,8 @@ export interface ShiftTableData {
   config: FloorConfig;
   holidays: string[];
   assignments: ShiftAssignment[];
+  /** 自フロアのスタッフが、今月中に別フロアへ応援に出た日の割当（表示専用。必要人数のカウントには含めない） */
+  awayAssignments: ShiftAssignment[];
   comments: StaffDayComment[];
   daysInMonth: number;
   prevMonthCarryoverStaffIds: string[];
@@ -25,15 +27,18 @@ export interface ShiftTableData {
 /** /shift ページの表示に必要なデータを一式ロードする */
 export async function getShiftTableData(floor: Floor, year: number, month: number): Promise<ShiftTableData> {
   const ctx = await loadContext(floor, year, month);
+  const visitingStaff = await loadVisitingStaff(floor, year, month);
+  const allStaff = [...ctx.staff, ...visitingStaff];
   const nightType = ctx.shiftTypes.find(st => st.isNightShift);
 
-  // 前月末に夜勤で、今月1日にまだ何も入っていないスタッフ（明け引き継ぎバナー用）
+  // 前月末に夜勤で、今月1日にまだ何も入っていないスタッフ（明け引き継ぎバナー用）。
+  // 応援で来ているスタッフも対象に含める（前月末このフロアの夜勤だった可能性があるため）。
   const pm = prevMonthOf(year, month);
   const prevLastDay = new Date(pm.year, pm.month, 0).getDate();
   const prevLastDate = `${pm.year}-${String(pm.month).padStart(2, '0')}-${String(prevLastDay).padStart(2, '0')}`;
   const day1 = `${year}-${String(month).padStart(2, '0')}-01`;
   const prevMonthCarryoverStaffIds = nightType
-    ? ctx.staff
+    ? allStaff
         .filter(s => {
           const prevA = ctx.prevMonthAssignments.find(a => a.staffId === s.id && a.date === prevLastDate);
           if (!prevA || prevA.shiftTypeId !== nightType.id) return false;
@@ -43,14 +48,22 @@ export async function getShiftTableData(floor: Floor, year: number, month: numbe
         .map(s => s.id)
     : [];
 
+  // 自フロアのスタッフが、今月中に別フロアへ応援に出た日の割当（表示専用。セルに「応援中」を出すために使う）
+  const homeStaffIds = ctx.staff.map(s => s.id);
+  const awayRows = homeStaffIds.length > 0
+    ? await db.shiftAssignment.findMany({ where: { date: { startsWith: ctx.mk }, staffId: { in: homeStaffIds }, floor: { not: floor } } })
+    : [];
+  const awayAssignments = awayRows.map(toDomainAssignment);
+
   const comments = await listComments(floor, year, month);
 
   return {
-    staff: ctx.staff,
+    staff: allStaff,
     shiftTypes: ctx.shiftTypes,
     config: ctx.config,
     holidays: ctx.holidays,
     assignments: ctx.monthAssignments,
+    awayAssignments,
     comments,
     daysInMonth: ctx.daysInMonth,
     prevMonthCarryoverStaffIds,
@@ -144,9 +157,8 @@ export async function applyPattern(floor: Floor, year: number, month: number, as
 }
 
 async function persistFloorMonth(floor: Floor, monthKey: string, assignments: ShiftAssignment[]) {
-  const staffIds = (await db.staff.findMany({ where: { floor }, select: { id: true } })).map(s => s.id);
   await db.$transaction(async tx => {
-    await tx.shiftAssignment.deleteMany({ where: { date: { startsWith: monthKey }, staffId: { in: staffIds } } });
+    await tx.shiftAssignment.deleteMany({ where: { date: { startsWith: monthKey }, floor } });
     if (assignments.length > 0) {
       await tx.shiftAssignment.createMany({ data: assignments.map(toAssignmentScalarData) });
     }
@@ -156,11 +168,10 @@ async function persistFloorMonth(floor: Floor, monthKey: string, assignments: Sh
 /** クリア（keepManual: 手入力以外を削除 / all: 全削除） */
 export async function clearAssignments(floor: Floor, year: number, month: number, mode: 'keepManual' | 'all'): Promise<void> {
   const mk = monthKeyOf(year, month);
-  const staffIds = (await db.staff.findMany({ where: { floor }, select: { id: true } })).map(s => s.id);
   await db.shiftAssignment.deleteMany({
     where: {
       date: { startsWith: mk },
-      staffId: { in: staffIds },
+      floor,
       ...(mode === 'keepManual' ? { isManual: false } : {}),
     },
   });
@@ -176,7 +187,7 @@ export async function setCarryoverAke(floor: Floor, year: number, month: number,
     staffIds.map(staffId =>
       db.shiftAssignment.upsert({
         where: { staffId_date: { staffId, date: day1 } },
-        create: { staffId, date: day1, shiftTypeId: akeType.id, isManual: true },
+        create: { staffId, date: day1, floor, shiftTypeId: akeType.id, isManual: true },
         update: { shiftTypeId: akeType.id, isManual: true },
       })
     )

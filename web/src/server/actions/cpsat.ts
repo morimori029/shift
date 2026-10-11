@@ -74,9 +74,10 @@ export async function generateShiftCpSat(floor: Floor, year: number, month: numb
   }
 
   // 手入力(isManual)を確実に反映（サイドカー側でも固定しているが、二重チェックとして上書き）
+  // floorはサイドカーの応答を信用せず、ここで呼び出し元のfloorを明示的に設定する
   const merged: ShiftAssignment[] = body.assignments.map(a => {
     const orig = ctx.monthAssignments.find(o => o.staffId === a.staffId && o.date === a.date && o.isManual);
-    return orig ? { ...orig } : a;
+    return orig ? { ...orig } : { ...a, floor };
   });
 
   // 業務割当は既存ロジックを流用

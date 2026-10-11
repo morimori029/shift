@@ -101,6 +101,9 @@ model ShiftAssignment {
   staffId     String
   staff       Staff      @relation(fields: [staffId], references: [id], onDelete: Cascade)
   date        String // 'YYYY-MM-DD'
+  // 割当時点のフロア（Floor: '1F' | '2F' | '非常勤'）。スタッフが後日フロア異動しても、
+  // この記録は変わらない（Staff.floorを都度参照すると過去月の表示が異動で書き換わってしまうため）。
+  floor       String
   shiftTypeId String? // null = 現行の 'off' センチネル相当
   shiftType   ShiftType? @relation(fields: [shiftTypeId], references: [id], onDelete: Cascade)
   isLeader    Boolean    @default(false)
@@ -109,6 +112,7 @@ model ShiftAssignment {
 
   @@unique([staffId, date])
   @@index([date])
+  @@index([date, floor])
 }
 
 model FloorConfig {

@@ -51,10 +51,7 @@ export default async function DailyCalendarPage({ searchParams }: { searchParams
             </div>
             <div className="grid grid-cols-2 divide-x divide-slate-200 min-h-[40px]">
               {FLOORS.map(floor => {
-                const dayFloorAssigns = monthAssignments.filter(a => {
-                  const s = staffMap.get(a.staffId);
-                  return a.date === date && s?.floor === floor && a.shiftTypeId !== 'off' && a.shiftTypeId !== 'paid';
-                });
+                const dayFloorAssigns = monthAssignments.filter(a => a.date === date && a.floor === floor && a.shiftTypeId !== 'off' && a.shiftTypeId !== 'paid');
                 const presentShiftTypes = activeShiftTypes.filter(st => dayFloorAssigns.some(a => a.shiftTypeId === st.id));
 
                 return (

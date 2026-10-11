@@ -198,11 +198,11 @@ export function generateShift(ctx: Context): ShiftAssignment[] {
         const dow = getDow(year, month, d);
         if (s.unavailableDow.includes(dow)) {
           // 出勤不可曜日 → 休み
-          result.push({ staffId: s.id, date, shiftTypeId: 'off', isLeader: false, isManual: false });
+          result.push({ staffId: s.id, date, floor, shiftTypeId: 'off', isLeader: false, isManual: false });
         } else if (s.monthlyWorkDays !== undefined && s.monthlyWorkDays > 0) {
           // monthlyWorkDays 設定あり → 出勤日は出勤、それ以外は休み
           const shiftId = workDays.has(d) && primaryShift ? primaryShift.id : 'off';
-          result.push({ staffId: s.id, date, shiftTypeId: shiftId, isLeader: false, isManual: false });
+          result.push({ staffId: s.id, date, floor, shiftTypeId: shiftId, isLeader: false, isManual: false });
         }
         // monthlyWorkDays 未設定 → 空欄のまま（何も push しない）
       }
@@ -350,7 +350,7 @@ export function generateShift(ctx: Context): ShiftAssignment[] {
 
   /** 新しいシフトを assignments リストに追加する */
   const assign = (staffId: string, date: string, shiftTypeId: string, isLeader = false) => {
-    assignments.push({ staffId, date, shiftTypeId, isLeader });
+    assignments.push({ staffId, date, floor, shiftTypeId, isLeader });
   };
 
   // ====================================================================

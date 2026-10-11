@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     db.staff.findMany({ where: { floor }, include: staffInclude, orderBy: { order: 'asc' } }),
     db.shiftType.findMany({ orderBy: { order: 'asc' } }),
     db.floorConfig.findUniqueOrThrow({ where: { floor } }),
-    db.shiftAssignment.findMany({ where: { date: { startsWith: monthKey }, staff: { floor } } }),
+    db.shiftAssignment.findMany({ where: { date: { startsWith: monthKey }, floor } }),
     db.staffDayComment.findMany({ where: { date: { startsWith: monthKey }, staff: { floor } } }),
   ]);
 

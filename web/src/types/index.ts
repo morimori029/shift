@@ -115,6 +115,7 @@ export interface TagPairSetting {
 export interface ShiftAssignment {
   staffId: string;      // スタッフのID
   date: string;         // 日付（YYYY-MM-DD 形式）
+  floor: Floor;         // 割当時点のフロア（スタッフが後日異動しても変わらない）
   shiftTypeId: string;  // シフト種別のID（または 'off' で休み）
   isLeader: boolean;    // その日リーダーかどうか
   isManual?: boolean;   // 手動で入力したシフトか（true なら自動生成で上書きしない）

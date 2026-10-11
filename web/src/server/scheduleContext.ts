@@ -48,7 +48,7 @@ export async function loadContext(floor: Floor, year: number, month: number) {
 
   const mk = monthKeyOf(year, month);
   const monthAssignmentRows = await db.shiftAssignment.findMany({
-    where: { date: { startsWith: mk }, staff: { floor } },
+    where: { date: { startsWith: mk }, floor },
   });
   const monthAssignments = monthAssignmentRows.map(toDomainAssignment);
   const prefilled = monthAssignments.filter(a => a.isManual);
@@ -56,11 +56,26 @@ export async function loadContext(floor: Floor, year: number, month: number) {
   const pm = prevMonthOf(year, month);
   const pmKey = monthKeyOf(pm.year, pm.month);
   const prevMonthRows = await db.shiftAssignment.findMany({
-    where: { date: { startsWith: pmKey }, staff: { floor } },
+    where: { date: { startsWith: pmKey }, floor },
   });
   const prevMonthAssignments = prevMonthRows.map(toDomainAssignment);
 
   const daysInMonth = new Date(year, month, 0).getDate();
 
   return { staff, shiftTypes, config, pairs, holidays, prefilled, prevMonthAssignments, monthAssignments, daysInMonth, mk };
+}
+
+/**
+ * 「応援」でこのフロアに来ているスタッフ（所属フロアは別だが、今月このフロアの
+ * 割当記録がある）を取得する。自動生成の対象（loadContext の staff）には含めない
+ * — 応援は手入力専用の一時的な割当のため。
+ */
+export async function loadVisitingStaff(floor: Floor, year: number, month: number): Promise<Staff[]> {
+  const mk = monthKeyOf(year, month);
+  const rows = await db.staff.findMany({
+    where: { floor: { not: floor }, assignments: { some: { date: { startsWith: mk }, floor } } },
+    include: staffInclude,
+    orderBy: { order: 'asc' },
+  });
+  return rows.map(toDomainStaff);
 }

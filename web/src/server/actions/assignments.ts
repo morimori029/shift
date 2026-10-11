@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/server/db';
-import type { DutyType } from '@/types';
+import type { DutyType, Floor } from '@/types';
 
 function nextDateOf(date: string): string {
   const dt = new Date(date + 'T00:00:00');
@@ -23,13 +23,18 @@ export interface SetAssignmentResult {
  * セルへの手動シフト設定。newShiftId が null ならセルをクリアする。
  * 夜勤を選ぶと翌日に「明け」を自動挿入し、夜勤以外に変更/クリアした場合は
  * 翌日の自動挿入された明けを取り消す（移行元: ShiftTablePage.tsx の assignShift）。
+ *
+ * floor は「今編集している表のフロア」。スタッフの所属フロアとは必ずしも一致しない
+ * （他フロアの表で編集した場合は応援になり、割当はそのfloorで記録される）。
  */
-export async function setAssignment(staffId: string, date: string, newShiftId: string | null): Promise<SetAssignmentResult> {
-  const [nightType, akeType, current] = await Promise.all([
+export async function setAssignment(staffId: string, date: string, newShiftId: string | null, floor: Floor): Promise<SetAssignmentResult> {
+  const [nightType, akeType, current, staff] = await Promise.all([
     db.shiftType.findFirst({ where: { isNightShift: true } }),
     db.shiftType.findFirst({ where: { isAke: true } }),
     db.shiftAssignment.findUnique({ where: { staffId_date: { staffId, date } } }),
+    db.staff.findUnique({ where: { id: staffId }, include: { availableShiftTypes: { select: { id: true } } } }),
   ]);
+  if (!staff) return { ok: true };
 
   // 現在が夜勤で、変更/クリアする場合は翌日の（自動挿入された）明けを削除する
   if (current?.shiftTypeId === nightType?.id && akeType) {
@@ -49,16 +54,15 @@ export async function setAssignment(staffId: string, date: string, newShiftId: s
   let warning: string | undefined;
   if (newShiftId !== 'off') {
     const st = await db.shiftType.findUnique({ where: { id: newShiftId } });
-    const staff = await db.staff.findUnique({ where: { id: staffId }, include: { availableShiftTypes: { select: { id: true } } } });
-    if (staff && st && !st.isAke && !staff.availableShiftTypes.some(x => x.id === newShiftId)) {
+    if (st && !st.isAke && !staff.availableShiftTypes.some(x => x.id === newShiftId)) {
       warning = `${staff.name} は ${st.name} に対応していません`;
     }
   }
 
   await db.shiftAssignment.upsert({
     where: { staffId_date: { staffId, date } },
-    create: { staffId, date, shiftTypeId: newShiftId === 'off' ? null : newShiftId, isManual: true },
-    update: { shiftTypeId: newShiftId === 'off' ? null : newShiftId, isLeader: false, isManual: true },
+    create: { staffId, date, floor, shiftTypeId: newShiftId === 'off' ? null : newShiftId, isManual: true },
+    update: { floor, shiftTypeId: newShiftId === 'off' ? null : newShiftId, isLeader: false, isManual: true },
   });
 
   let akeInserted = false;
@@ -66,8 +70,8 @@ export async function setAssignment(staffId: string, date: string, newShiftId: s
     const nextDate = nextDateOf(date);
     await db.shiftAssignment.upsert({
       where: { staffId_date: { staffId, date: nextDate } },
-      create: { staffId, date: nextDate, shiftTypeId: akeType.id, isManual: true },
-      update: { shiftTypeId: akeType.id, isLeader: false, isManual: true },
+      create: { staffId, date: nextDate, floor, shiftTypeId: akeType.id, isManual: true },
+      update: { floor, shiftTypeId: akeType.id, isLeader: false, isManual: true },
     });
     akeInserted = true;
   }

@@ -1,8 +1,9 @@
-import type { ShiftAssignment, DutyType } from '@/types';
+import type { ShiftAssignment, DutyType, Floor } from '@/types';
 
 export interface AssignmentRow {
   staffId: string;
   date: string;
+  floor: string;
   shiftTypeId: string | null; // null = 'off'
   isLeader: boolean;
   isManual: boolean;
@@ -14,6 +15,7 @@ export function toDomainAssignment(row: AssignmentRow): ShiftAssignment {
   return {
     staffId: row.staffId,
     date: row.date,
+    floor: row.floor as Floor,
     shiftTypeId: row.shiftTypeId ?? 'off',
     isLeader: row.isLeader,
     isManual: row.isManual,
@@ -26,6 +28,7 @@ export function toAssignmentScalarData(a: ShiftAssignment) {
   return {
     staffId: a.staffId,
     date: a.date,
+    floor: a.floor,
     shiftTypeId: a.shiftTypeId === 'off' ? null : a.shiftTypeId,
     isLeader: a.isLeader,
     isManual: a.isManual ?? false,

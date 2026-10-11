@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useToast } from '@/components/Toast';
 import { autoFillShift, regenerateShift, applyPattern, clearAssignments, setCarryoverAke, type SchedulePattern, type ShiftTableData } from '@/server/actions/schedule';
 import { setAssignment, toggleLock, setAssignmentDuty } from '@/server/actions/assignments';
 import { setComment } from '@/server/actions/comments';
-import type { Floor, DutyType } from '@/types';
+import { listStaff } from '@/server/actions/staff';
+import type { Floor, DutyType, Staff } from '@/types';
 import { ALL_DUTIES, DUTY_LABELS } from '@/types';
 import { DENSITY_STYLE, DUTY_COLORS, DOW_LABELS, dateStr, type Density } from './constants';
 import CoverageSummary from './CoverageSummary';
@@ -27,9 +28,12 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
   const searchParams = useSearchParams();
   const toast = useToast();
 
-  const { staff, shiftTypes, config, holidays, comments, daysInMonth, prevMonthCarryoverStaffIds } = data;
+  const { shiftTypes, config, holidays, comments, daysInMonth, prevMonthCarryoverStaffIds, awayAssignments } = data;
 
   const [generating, setGenerating] = useState(false);
+  const [pendingVisitors, setPendingVisitors] = useState<Staff[]>([]);
+  const [showAddVisitor, setShowAddVisitor] = useState(false);
+  const [visitorCandidates, setVisitorCandidates] = useState<Staff[] | null>(null);
   const [patterns, setPatterns] = useState<SchedulePattern[]>([]);
   const [currentPatternIdx, setCurrentPatternIdx] = useState(0);
   const [showPatternDetail, setShowPatternDetail] = useState(false);
@@ -39,12 +43,25 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
   const [compareMode, setCompareMode] = useState(false);
   const [expandedFloors, setExpandedFloors] = useState<Set<Floor>>(new Set());
   const [activeCell, setActiveCell] = useState<{ staffId: string; date: string; x: number; y: number } | null>(null);
+  const [sendTarget, setSendTarget] = useState<Floor | null>(null);
   const [commentDraft, setCommentDraft] = useState('');
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const assignments = patterns.length > 0 ? patterns[currentPatternIdx].assignments : data.assignments;
   const isPreview = patterns.length > 0;
   const D = DENSITY_STYLE[density];
+
+  // 追加直後でまだ割当のない応援スタッフ（pendingVisitors）も表に出す。実際に割当を入れると
+  // サーバー側のstaff一覧（data.staff）に本物として載るので、重複排除する。
+  const staff = useMemo(
+    () => [...data.staff, ...pendingVisitors.filter(v => !data.staff.some(s => s.id === v.id))],
+    [data.staff, pendingVisitors]
+  );
+  const awayMap = useMemo(() => {
+    const m = new Map<string, (typeof awayAssignments)[number]>();
+    awayAssignments.forEach(a => m.set(`${a.staffId}:${a.date}`, a));
+    return m;
+  }, [awayAssignments]);
 
   const shiftTypeMap = useMemo(() => Object.fromEntries(shiftTypes.map(st => [st.id, st])), [shiftTypes]);
   const editableShiftTypes = shiftTypes.filter(st => !st.isAke).sort((a, b) => a.order - b.order);
@@ -63,10 +80,22 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
   useEffect(() => {
     if (!activeCell) return;
     const handler = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) setActiveCell(null);
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) { setActiveCell(null); setSendTarget(null); }
     };
     const id = setTimeout(() => document.addEventListener('mousedown', handler), 0);
     return () => { clearTimeout(id); document.removeEventListener('mousedown', handler); };
+  }, [activeCell]);
+
+  // 画面端のセルをクリックしたとき、ポップアップが画面外にはみ出さないよう位置を補正する
+  useLayoutEffect(() => {
+    if (!activeCell || !popoverRef.current) return;
+    const el = popoverRef.current;
+    const margin = 8;
+    const rect = el.getBoundingClientRect();
+    const left = Math.min(activeCell.x, Math.max(margin, window.innerWidth - margin - rect.width));
+    const top = Math.min(activeCell.y, Math.max(margin, window.innerHeight - margin - rect.height));
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
   }, [activeCell]);
 
   const gotoMonth = (y: number, m: number) => {
@@ -149,11 +178,13 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
     router.refresh();
   };
 
-  const handlePickShift = async (staffId: string, date: string, shiftId: string | null) => {
+  const handlePickShift = async (staffId: string, date: string, shiftId: string | null, targetFloor: Floor = floor) => {
     setActiveCell(null);
-    const res = await setAssignment(staffId, date, shiftId);
+    setSendTarget(null);
+    const res = await setAssignment(staffId, date, shiftId, targetFloor);
     if (res.warning) toast.show(res.warning, 'info');
     else if (res.akeInserted) toast.show('翌日に明けを自動設定しました', 'info');
+    else if (targetFloor !== floor) toast.show(`${targetFloor}への応援として設定しました`, 'success');
     router.refresh();
   };
 
@@ -183,6 +214,16 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
     await setCarryoverAke(floor, year, month, prevMonthCarryoverStaffIds);
     toast.show('前月夜勤スタッフの明けを設定しました');
     router.refresh();
+  };
+
+  const handleOpenAddVisitor = async () => {
+    if (!visitorCandidates) setVisitorCandidates(await listStaff());
+    setShowAddVisitor(v => !v);
+  };
+
+  const handleAddVisitor = (s: Staff) => {
+    setPendingVisitors(prev => (prev.some(p => p.id === s.id) ? prev : [...prev, s]));
+    setShowAddVisitor(false);
   };
 
   const emptyCount = staff.reduce((sum, s) => {
@@ -253,6 +294,39 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
         >
           {compareMode ? '比較モード ON（1F/2F）' : '比較モード'}
         </button>
+
+        {!compareMode && floor !== '非常勤' && (
+          <div className="relative">
+            <button
+              onClick={() => void handleOpenAddVisitor()}
+              className="px-3 py-1.5 text-xs rounded-lg font-semibold border border-teal-300 bg-white text-teal-600 hover:bg-teal-50"
+            >
+              + 応援スタッフを追加
+            </button>
+            {showAddVisitor && (
+              <div className="absolute z-[150] mt-1 w-56 max-h-64 overflow-auto bg-white border border-slate-200 rounded-lg shadow-xl py-1">
+                {!visitorCandidates ? (
+                  <div className="px-3 py-2 text-xs text-slate-400">読み込み中...</div>
+                ) : (() => {
+                  const candidates = visitorCandidates.filter(s => s.floor !== floor && !staff.some(x => x.id === s.id));
+                  if (candidates.length === 0) {
+                    return <div className="px-3 py-2 text-xs text-slate-400">追加できるスタッフがいません</div>;
+                  }
+                  return candidates.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => handleAddVisitor(s)}
+                      className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-teal-50 flex items-center justify-between"
+                    >
+                      <span>{s.name}</span>
+                      <span className="text-[10px] text-slate-400">{s.floor}</span>
+                    </button>
+                  ));
+                })()}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="ml-auto flex gap-2">
           {!compareMode && (
@@ -409,15 +483,17 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
                   <td className="sticky left-0 z-10 bg-white px-3 py-1.5 text-xs font-bold border border-slate-200 border-r-2 border-r-slate-300 whitespace-nowrap align-middle">
                     {s.name}
                     {s.isNightOnly && <span className="ml-1 px-1 py-0 rounded text-[9px] font-bold bg-purple-100 text-purple-600">夜専</span>}
+                    {s.floor !== floor && <span className="ml-1 px-1 py-0 rounded text-[9px] font-bold bg-teal-100 text-teal-700">応援（{s.floor}）</span>}
                   </td>
                   {monthDays.map(({ d, date, dow }) => {
                     const a = findAssignment(s.id, date);
+                    const away = s.floor === floor ? awayMap.get(`${s.id}:${date}`) : undefined;
                     const st = a ? shiftTypeMap[a.shiftTypeId] : undefined;
-                    const isEmpty = !a;
+                    const isEmpty = !a && !away;
                     const bgCls = dow === 0 ? 'bg-red-50/40' : dow === 6 ? 'bg-blue-50/40' : '';
-                    const cellBg = st ? st.bgColor : isEmpty ? undefined : '#fecaca';
-                    const cellColor = st ? st.color : isEmpty ? '#e2e8f0' : '#dc2626';
-                    const cellText = isEmpty ? '' : (st?.shortName ?? '休');
+                    const cellBg = away ? '#f1f5f9' : st ? st.bgColor : isEmpty ? undefined : '#fecaca';
+                    const cellColor = away ? '#94a3b8' : st ? st.color : isEmpty ? '#e2e8f0' : '#dc2626';
+                    const cellText = away ? `→${away.floor}` : isEmpty ? '' : (st?.shortName ?? '休');
                     const isDutyEligible = a && st?.isDayShift && !st.isAke;
                     const dutyLabel = a?.duty ? DUTY_LABELS[a.duty] : null;
                     const dutyColor = a?.duty ? DUTY_COLORS[a.duty] : null;
@@ -431,17 +507,18 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
                             if (isPreview) return;
                             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                             setCommentDraft(findComment(s.id, date));
+                            setSendTarget(null);
                             setActiveCell({ staffId: s.id, date, x: rect.left, y: rect.bottom + 2 });
                           }}
                           className={`relative ${D.cellW} ${D.padY} rounded-lg block mx-auto ${isEmpty ? 'border border-dashed border-slate-200' : ''}`}
                           style={{ background: cellBg, color: cellColor }}
-                          title={isEmpty ? '未設定（クリックで入力）' : (st?.name ?? '休み')}
+                          title={away ? `${away.floor}へ応援中（クリックで変更）` : isEmpty ? '未設定（クリックで入力）' : (st?.name ?? '休み')}
                         >
                           <span className={`${D.badgeText} font-bold`}>{cellText}</span>
                           {isDutyEligible && dutyLabel && (
                             <div className={`mt-0.5 rounded ${D.dutyText} font-semibold px-1`} style={{ background: dutyColor?.bg, color: dutyColor?.color }}>{dutyLabel}</div>
                           )}
-                          {!isEmpty && (
+                          {!isEmpty && !away && (
                             <span
                               onClick={e => void handleToggleLock(e, s.id, date)}
                               className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center"
@@ -507,14 +584,43 @@ export default function ShiftTablePageClient({ floor, year, month, data, compare
 
       {activeCell && (
         <div ref={popoverRef} className="fixed z-[200] bg-white border border-slate-200 rounded-xl shadow-2xl p-2.5" style={{ top: activeCell.y, left: activeCell.x }}>
-          <div className="flex flex-wrap gap-1 mb-2" style={{ maxWidth: 240 }}>
-            <button onClick={() => void handlePickShift(activeCell.staffId, activeCell.date, null)} className="w-8 h-7 text-[11px] font-bold border border-dashed border-slate-300 rounded text-slate-400 hover:border-red-400 hover:text-red-500" title="空（クリア）">空</button>
-            <button onClick={() => void handlePickShift(activeCell.staffId, activeCell.date, 'off')} className="w-8 h-7 text-[11px] font-bold rounded bg-slate-100 text-slate-600 hover:bg-slate-200" title="休み">休</button>
-            {editableShiftTypes.map(st => (
-              <button key={st.id} onClick={() => void handlePickShift(activeCell.staffId, activeCell.date, st.id)} className="w-8 h-7 text-[11px] font-bold rounded hover:opacity-75" style={{ background: st.bgColor, color: st.color }} title={st.name}>{st.shortName}</button>
-            ))}
-          </div>
           {(() => {
+            const otherFloor: Floor | null = floor === '1F' ? '2F' : floor === '2F' ? '1F' : null;
+            const cellStaff = staff.find(x => x.id === activeCell.staffId);
+            const canSend = otherFloor !== null && cellStaff?.floor === floor;
+
+            if (sendTarget) {
+              return (
+                <div className="mb-2" style={{ maxWidth: 240 }}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-bold text-teal-700">{sendTarget}へ応援：シフトを選択</span>
+                    <button onClick={() => setSendTarget(null)} className="text-[10px] text-slate-400 hover:text-slate-600">&larr; 戻る</button>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {editableShiftTypes.map(st => (
+                      <button key={st.id} onClick={() => void handlePickShift(activeCell.staffId, activeCell.date, st.id, sendTarget)} className="w-8 h-7 text-[11px] font-bold rounded hover:opacity-75" style={{ background: st.bgColor, color: st.color }} title={st.name}>{st.shortName}</button>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div className="flex flex-wrap gap-1 mb-2" style={{ maxWidth: 240 }}>
+                <button onClick={() => void handlePickShift(activeCell.staffId, activeCell.date, null)} className="w-8 h-7 text-[11px] font-bold border border-dashed border-slate-300 rounded text-slate-400 hover:border-red-400 hover:text-red-500" title="空（クリア）">空</button>
+                <button onClick={() => void handlePickShift(activeCell.staffId, activeCell.date, 'off')} className="w-8 h-7 text-[11px] font-bold rounded bg-slate-100 text-slate-600 hover:bg-slate-200" title="休み">休</button>
+                {editableShiftTypes.map(st => (
+                  <button key={st.id} onClick={() => void handlePickShift(activeCell.staffId, activeCell.date, st.id)} className="w-8 h-7 text-[11px] font-bold rounded hover:opacity-75" style={{ background: st.bgColor, color: st.color }} title={st.name}>{st.shortName}</button>
+                ))}
+                {canSend && (
+                  <button onClick={() => setSendTarget(otherFloor)} className="px-2 h-7 text-[11px] font-bold rounded border border-teal-300 text-teal-600 hover:bg-teal-50" title={`${otherFloor}へ応援`}>
+                    &rarr;{otherFloor}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+          {!sendTarget && (() => {
             const a = findAssignment(activeCell.staffId, activeCell.date);
             const st = a ? shiftTypeMap[a.shiftTypeId] : undefined;
             if (!a || !st?.isDayShift || st.isAke) return null;
