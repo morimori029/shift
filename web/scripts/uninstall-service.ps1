@@ -1,9 +1,10 @@
-﻿<#
+<#
 .SYNOPSIS
-  install-service.ps1 で登録したNext.jsのタスクを停止して削除する（管理者権限で実行）。
+  Stop and remove the task registered by install-service.ps1 (run as Administrator).
 
 .PARAMETER DeployDir
-  install-service.ps1 に渡したものと同じ .next/standalone の配置先（残っているnodeプロセスを止めるために使う）
+  Same .next/standalone folder that was given to install-service.ps1
+  (used to stop the leftover node process)
 #>
 param(
   [Parameter(Mandatory = $true)][string]$DeployDir,
@@ -18,4 +19,4 @@ Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
 Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
   Where-Object { $_.CommandLine -and $_.CommandLine.Contains($serverJs) } |
   ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
-Write-Host "タスク '$TaskName' を削除し、プロセスを停止しました。"
+Write-Host "Task '$TaskName' removed and its process stopped."

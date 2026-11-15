@@ -52,6 +52,30 @@ DBは上記のとおり最初からデータ保存先（`C:\ShiftAppData\dev.db`
 コミット履歴、`fee5264`〜`cd953b1` 付近）を一時的に復元して使うか、スタッフ登録
 画面から手入力する。
 
+### 手動で起動して確認する（タスク登録の前に）
+
+`web/.env` に本番の値を書いておけば、環境変数を毎回手入力せずに起動できる。
+
+```
+DATABASE_URL="file:C:/ShiftAppData/dev.db"
+ADMIN_PASSWORD="実際に使うパスワード"
+PORT=8002
+HOSTNAME=0.0.0.0
+SIDECAR_URL="http://127.0.0.1:8001"
+```
+
+（サーバーの文字コードの都合で日本語が文字化けしやすいため、`.env` のコメントと運用スクリプト（`scripts/*.ps1`）のメッセージは英語のみ。
+`PORT` 省略時の既定値は 8002。）
+
+```powershell
+cd web
+powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1
+```
+
+`.env` を読み込んで `.next/standalone/server.js` を起動する（`Ctrl+C` で終了）。
+`migrate deploy` / `seed` も、同じ `.env` の `DATABASE_URL` が使われる。
+常時稼働させる場合は、下の「タスク登録」を使う。
+
 ### タスク登録
 
 **PowerShellを「管理者として実行」で開いて**実行する:
@@ -67,7 +91,7 @@ cd web/scripts
 これで:
 - Node.jsサーバーがタスク「ShiftWebApp」として、サーバー起動時（ログイン不要）に自動起動
 - クラッシュ時は起動用スクリプト（`C:\ShiftAppData\run-shift-web.cmd`）内のループで10秒後に自動再起動
-- ポート3000でLISTEN（`-Port`で変更可）、`HOSTNAME=0.0.0.0` でLAN内の他端末からもアクセス可能
+- ポート8002でLISTEN（`-Port`で変更可）、`HOSTNAME=0.0.0.0` でLAN内の他端末からもアクセス可能
 - ログは `C:\ShiftAppData\web-service.log` / `web-service-error.log`（10MB超で世代交代）
 
 として登録される。`run-shift-web.cmd` には共通パスワードが書かれるため、
@@ -76,7 +100,7 @@ cd web/scripts
 **ファイアウォール**（スクリプト実行後、表示される案内の通り）:
 
 ```powershell
-New-NetFirewallRule -DisplayName "Shift Web App" -Direction Inbound -LocalPort 3000 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "Shift Web App" -Direction Inbound -LocalPort 8002 -Protocol TCP -Action Allow
 ```
 
 ## 4. CP-SATサイドカー（sidecar/）のセットアップ
@@ -104,8 +128,8 @@ cd sidecar/scripts
 
 ## 5. 動作確認
 
-1. サーバー自身で `http://localhost:3000` を開き、シフト表・自動生成まで一通り操作
-2. 同じLAN内の別端末から `http://<サーバーのIP>:3000` にアクセスできることを確認
+1. サーバー自身で `http://localhost:8002` を開き、シフト表・自動生成まで一通り操作
+2. 同じLAN内の別端末から `http://<サーバーのIP>:8002` にアクセスできることを確認
 3. サーバーを再起動し、手動操作なしで両サービスが自動的に立ち上がることを確認
 4. サイドバーの「今すぐバックアップ」を押し、`C:\ShiftAppData\backups\` に
    ファイルが作成されることを確認
